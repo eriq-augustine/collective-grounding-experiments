@@ -3,7 +3,7 @@
 OUT_FILENAME = 'out.txt'
 SKIP_DIRS = ['.', '..']
 
-HEADERS = ['Example', 'Method', 'Run', 'TODO']
+HEADERS = ['Example', 'Method', 'Run', 'Rewrite Time', 'Query Time', 'Query Size', 'Instantiation Time', 'Ground Rules']
 
 INDEX_REWRITE_TIME = 0
 INDEX_QUERY_TIME = 1
@@ -102,6 +102,7 @@ def main(args)
    resultDir = loadArgs(args)
    rows = parseDir(resultDir)
 
+   puts HEADERS.join("\t")
    rows.sort().each{|row|
       puts row.join("\t")
    }
