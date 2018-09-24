@@ -7,11 +7,17 @@ readonly PSL_EXAMPLES_DIR="${BASE_DIR}/psl-examples"
 readonly PSL_EXAMPLES_REPO='https://github.com/linqs/psl-examples.git'
 readonly PSL_EXAMPLES_BRANCH='develop'
 
+readonly SPECIAL_DATA_DIR="${BASE_DIR}/special-data"
+readonly OTHER_EXAMPLE_DIR="${BASE_DIR}/other-examples"
+
 readonly POSTGRES_DB='psl'
-readonly BASE_PSL_OPTION="--postgres ${POSTGRES_DB} -D log4j.threshold=TRACE"
+readonly BASE_PSL_OPTION="--postgres ${POSTGRES_DB} -D log4j.threshold=TRACE -D persistedatommanager.throwaccessexception=false"
 
 readonly EXPERIMENT_NAMES=('no_rewrites' 'size_rewrites' 'selectivity_rewrites' 'histogram_rewrites')
 readonly EXPERIMENT_OPTIONS=('-D grounding.rewritequeries=false' '-D grounding.rewritequeries=true -D queryrewriter.costestimator=size' '-D grounding.rewritequeries=true -D queryrewriter.costestimator=selectivity' '-D grounding.rewritequeries=true -D queryrewriter.costestimator=histogram')
+
+# Examples that cannot use int ids.
+readonly STRING_IDS='entity-resolution simple-acquaintances user-modeling'
 
 readonly NUM_RUNS=10
 
@@ -19,6 +25,8 @@ readonly STDOUT_FILE='out.txt'
 readonly STDERR_FILE='out.err'
 
 readonly ER_DATA_SZIE='large'
+
+readonly MEM_GB='25'
 
 function fetch_psl_examples() {
    if [ -e ${PSL_EXAMPLES_DIR} ]; then
@@ -36,6 +44,13 @@ function fetch_psl_examples() {
 
    # Change the size of the ER example to the max size.
    sed -i "s/^readonly SIZE='.*'$/readonly SIZE='${ER_DATA_SZIE}'/" "${PSL_EXAMPLES_DIR}/entity-resolution/data/fetchData.sh"
+
+   # Replace the data in friendship
+   rm -r "${PSL_EXAMPLES_DIR}/friendship/data/friendship"
+   cp -r "${SPECIAL_DATA_DIR}/friendship" "${PSL_EXAMPLES_DIR}/friendship/data/friendship"
+
+   # Copy in pairwise friendship
+   cp -r "${OTHER_EXAMPLE_DIR}/friendship-pairwise" "${PSL_EXAMPLES_DIR}/"
 }
 
 function run_example() {
@@ -48,6 +63,12 @@ function run_example() {
       return
    fi
 
+   # TEST(eriq): Skip this for now until we move it to a larger machine.
+   if [[ "${outDir}" == *'entity-resolution/size_rewrites'* ]]; then
+      echo "Skipping ER-Size"
+      return
+   fi
+
    local baseName=`basename ${exampleBaseDir}`
 
    echo "Running ${baseName} (${outDir})."
@@ -56,11 +77,19 @@ function run_example() {
    local outStdoutPath="${outDir}/${STDOUT_FILE}"
    local outStderrPath="${outDir}/${STDERR_FILE}"
 
+   # Check for int ids.
+   if [[ "${STRING_IDS}" != *"${baseName}"* ]]; then
+      options="--int-ids ${options}"
+   fi
+
    pushd . > /dev/null
       cd "${exampleBaseDir}/cli"
 
       # Always create a -leared version of the model in case this example has weight learning.
       cp "${baseName}.psl" "${baseName}-learned.psl"
+
+      # Increase memory allocation.
+      sed -i "s/java -jar/java -Xmx${MEM_GB}G -Xms${MEM_GB}G -jar/" run.sh
 
       # Disable weight learning.
       sed -i 's/^\(\s\+\)runWeightLearning/\1# runWeightLearning/' run.sh
