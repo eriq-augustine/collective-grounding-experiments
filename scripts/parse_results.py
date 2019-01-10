@@ -79,7 +79,7 @@ def parseFile(path):
                 hasRewrite = True
                 continue
 
-            match = re.search(r'- Grounding (\d+) rule\(s\) with query:', line)
+            match = re.search(r'- Grounding (\d+) rule\(?s\)? with query:', line)
             if (match != None):
                 if (hasRewrite):
                     hasRewrite = False
@@ -199,15 +199,70 @@ def parseDir(resultDir):
 
 # Note: This function makes some strong assumptions about the structure of the rows.
 def makeTables(rows):
-    makeDatasetTable(rows)
+    makeFullTable(rows)
     print("\n%%%%%\n")
     makeEstimatorTable(rows)
+    print("\n%%%%%\n")
+    makeDatasetTable(rows)
+
+def makeDatasetTable(rows):
+    # for row in rows:
+
+    print(INDENT * 1 + '\\begin{table}[h]')
+    print(INDENT * 2 + '\\scriptsize')
+    print()
+    print(INDENT * 2 + '\\begin{center}')
+    print(INDENT * 3 + '\\caption{Condensed performance on each dataset.}')
+    print()
+    print(INDENT * 3 + '\\begin{tabular}{ l | l | r | r}')
+    print(INDENT * 4 + '\\toprule')
+    print(INDENT * 5 + 'Dataset & Best Estimator & Speedup (Ratio) & Speedup (ms) \\\\')
+    print()
+    print(INDENT * 4 + '\\midrule')
+    print()
+
+    # {dataset: [best estimator, speedup (ratio), speedup (abs)], ...}
+    stats = {}
+
+    for row in rows:
+        dataset = row[INDEX_EXAMPLE]
+        estimator = row[INDEX_ESTIMATOR]
+        speedup = 1.0 / row[INDEX_BASELINE_COMPARISON]
+        absolute_speedup = int((row[INDEX_MEAN_QUERY_TIME] * speedup) - row[INDEX_MEAN_QUERY_TIME])
+
+        if (estimator == 'no_rewrites'):
+            continue
+
+        if (dataset not in stats):
+            stats[dataset] = [None, 0.0, 0]
+
+        if (speedup > stats[dataset][1]):
+            stats[dataset] = [estimator, speedup, absolute_speedup]
+
+    for dataset in sorted(stats.keys()):
+        [estimator, speedup, absolute_speedup] = stats[dataset]
+
+        tableRow = [
+            cleanName(dataset),
+            cleanName(estimator),
+            "%4.2f" % (speedup),
+            absolute_speedup,
+        ]
+
+        print(INDENT * 5 + ' & '.join([str(val) for val in tableRow]) + ' \\\\')
+
+    print()
+    print(INDENT * 4 + '\\bottomrule')
+    print(INDENT * 3 + '\\end{tabular}')
+    print(INDENT * 3 + '\\label{table:dataset-results}')
+    print(INDENT * 2 + '\\end{center}')
+    print(INDENT * 1 + '\\end{table}')
 
 def makeEstimatorTable(rows):
     # for row in rows:
 
     print(INDENT * 1 + '\\begin{table}[h]')
-    print(INDENT * 2 + '\\tiny')
+    print(INDENT * 2 + '\\scriptsize')
     print()
     print(INDENT * 2 + '\\begin{center}')
     print(INDENT * 3 + '\\caption{Qualitative performance of different query cost estimators compared to the baseline aggregated over datasets.}')
@@ -260,11 +315,11 @@ def makeEstimatorTable(rows):
     print(INDENT * 2 + '\\end{center}')
     print(INDENT * 1 + '\\end{table}')
 
-def makeDatasetTable(rows):
+def makeFullTable(rows):
     # for row in rows:
 
     print(INDENT * 1 + '\\begin{table}[h]')
-    print(INDENT * 2 + '\\tiny')
+    print(INDENT * 2 + '\\scriptsize')
     print()
     print(INDENT * 2 + '\\begin{center}')
     print(INDENT * 3 + '\\caption{Grounding time using different query rewriting.}')
