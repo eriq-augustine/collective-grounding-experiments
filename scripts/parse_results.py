@@ -13,14 +13,34 @@ OUT_FILENAME = 'out.txt'
 
 SKIP_EXAMPLES = ['simple-acquaintances', 'user-modeling']
 
-HEADERS = ['Example', 'Method', 'Mean Rewrite Time', 'StdDev Rewrite Time', 'Mean Query Time', 'StdDev Query Time', 'Mean Query Size', 'StdDev Query Size', 'Mean Instantiation Time', 'StdDev Instantiation Time', 'Mean Ground Rules', 'StdDev Ground Rules', 'Compared to No Rewrite', 'p - Student-T vs Baseline', 'p - Welch-T vs Baseline']
+HEADERS = [
+    'Example', 'Method',
+    'Mean Rewrite Time', 'StdDev Rewrite Time',
+    'Mean Query Time', 'StdDev Query Time',
+    'Mean Query Size', 'StdDev Query Size',
+    'Mean Instantiation Time', 'StdDev Instantiation Time',
+    'Mean Ground Rules', 'StdDev Ground Rules',
+    'Compared to No Rewrite', 'p - Student-T vs Baseline', 'p - Welch-T vs Baseline',
+    'Query Time Per Tuple', 'Instantiation Time Per Tuple', 'Instantiation / Query Cost Ratio'
+]
 
-INDEX_REWRITE_TIME = 0
-INDEX_QUERY_TIME = 1
-INDEX_QUERY_RESULTS = 2
-INDEX_INSTANTIATION_TIME = 3
-INDEX_GROUND_RULES = 4
+LOG_INDEX_REWRITE_TIME = 0
+LOG_INDEX_QUERY_TIME = 1
+LOG_INDEX_QUERY_RESULTS = 2
+LOG_INDEX_INSTANTIATION_TIME = 3
+LOG_INDEX_GROUND_RULES = 4
 NUM_LOG_STATS = 5
+
+INDEX_EXAMPLE = 0
+INDEX_ESTIMATOR = 1
+INDEX_MEAN_QUERY_TIME = 4
+INDEX_STDDEV_QUERY_TIME = 5
+INDEX_MEAN_QUERY_SIZE = 6
+INDEX_MEAN_INSTANTIATION_TIME = 8
+INDEX_BASELINE_COMPARISON = 12
+INDEX_STUDENT_P = 13
+INDEX_QUERY_TIME_PER_TUPLE = 15
+INDEX_INSTANTIATION_TIME_PER_TUPLE = 16
 
 INDENT = '   '
 
@@ -63,7 +83,7 @@ def parseFile(path):
             if (match != None):
                 if (hasRewrite):
                     hasRewrite = False
-                    results[INDEX_REWRITE_TIME] += time - startTime
+                    results[LOG_INDEX_REWRITE_TIME] += time - startTime
 
                 numberOfGroundingRules = int(match.group(1))
                 startTime = time
@@ -71,36 +91,36 @@ def parseFile(path):
 
             match = re.search(r'- Got (\d+) results from query', line)
             if (match != None):
-                results[INDEX_QUERY_RESULTS] += numberOfGroundingRules * int(match.group(1))
-                results[INDEX_QUERY_TIME] += time - startTime
+                results[LOG_INDEX_QUERY_RESULTS] += numberOfGroundingRules * int(match.group(1))
+                results[LOG_INDEX_QUERY_TIME] += time - startTime
                 startTime = time
                 continue
 
             match = re.search(r'- Generated (\d+) ground rules with query:', line)
             if (match != None):
-                results[INDEX_GROUND_RULES] += numberOfGroundingRules * int(match.group(1))
-                results[INDEX_INSTANTIATION_TIME] += time - startTime
+                results[LOG_INDEX_GROUND_RULES] += numberOfGroundingRules * int(match.group(1))
+                results[LOG_INDEX_INSTANTIATION_TIME] += time - startTime
                 continue
 
     return results
 
-def aggregateResults(rows):
+def aggregateResults(raw_rows):
     # {'example\tmethod' => [[stat1_value1, stat1_value2, ...], ...]
     aggregates = {}
 
-    for row in rows:
-        key = "\t".join([row[0], row[1]])
+    for raw_row in raw_rows:
+        key = "\t".join([raw_row[0], raw_row[1]])
 
         # Take only the stats.
-        row = row[3:]
+        raw_row = raw_row[3:]
 
         if (key not in aggregates):
             aggregates[key] = []
-            for i in range(len(row)):
+            for i in range(len(raw_row)):
                 aggregates[key].append([])
 
-        for i in range(len(row)):
-            aggregates[key][i].append(row[i])
+        for i in range(len(raw_row)):
+            aggregates[key][i].append(raw_row[i])
 
     # Keep track of the time without rewrites so we can make a column for it.
     # {'example' => meanQueryTime, ...}
@@ -134,10 +154,10 @@ def aggregateResults(rows):
         results.append(row)
 
     for row in results:
-        baselineVals = baselineTimes[row[0]]
-        vals = queryTimes["\t".join([row[0], row[1]])]
+        baselineVals = baselineTimes[row[INDEX_EXAMPLE]]
+        vals = queryTimes["\t".join([row[INDEX_EXAMPLE], row[INDEX_ESTIMATOR]])]
 
-        row.append(row[4] / baselineMeans[row[0]])
+        row.append(row[INDEX_MEAN_QUERY_TIME] / baselineMeans[row[INDEX_EXAMPLE]])
 
         # Student-T against baseline.
         t, p = scipy.stats.ttest_ind(baselineVals, vals)
@@ -146,6 +166,14 @@ def aggregateResults(rows):
         # Welch-T against baseline.
         t, p = scipy.stats.ttest_ind(baselineVals, vals, equal_var = False)
         row.append(p)
+
+        # Query time per tuple
+        row.append(row[INDEX_MEAN_QUERY_TIME] / row[INDEX_MEAN_QUERY_SIZE])
+
+        # Instantiation time per tuple.
+        row.append(row[INDEX_MEAN_INSTANTIATION_TIME] / row[INDEX_MEAN_QUERY_SIZE])
+
+        row.append(row[INDEX_INSTANTIATION_TIME_PER_TUPLE] / row[INDEX_QUERY_TIME_PER_TUPLE])
 
     return results
 
@@ -195,9 +223,9 @@ def makeEstimatorTable(rows):
     stats = {}
 
     for row in rows:
-        estimator = row[1]
-        comparedToBaseline = row[-3]
-        significant = row[-2] < P_VALUE
+        estimator = row[INDEX_ESTIMATOR]
+        comparedToBaseline = row[INDEX_BASELINE_COMPARISON]
+        significant = row[INDEX_STUDENT_P] < P_VALUE
 
         if (estimator == 'no_rewrites'):
             continue
@@ -253,21 +281,21 @@ def makeDatasetTable(rows):
         tableRow = []
 
         # Only the first row of each example gets the example printed.
-        if (row[0] != oldExample):
+        if (row[INDEX_EXAMPLE] != oldExample):
             if (oldExample != None):
                 print()
                 print(INDENT * 5 + '\\hline')
                 print()
 
-            oldExample = row[0]
-            tableRow.append(cleanName(row[0]))
+            oldExample = row[INDEX_EXAMPLE]
+            tableRow.append(cleanName(row[INDEX_EXAMPLE]))
         else:
             tableRow.append('  ')
 
-        tableRow.append(cleanName(row[1]))
-        tableRow.append("%d$\\pm$%d" % (int(row[4]), int(row[5])))
+        tableRow.append(cleanName(row[INDEX_ESTIMATOR]))
+        tableRow.append("%d$\\pm$%d" % (int(row[INDEX_MEAN_QUERY_TIME]), int(row[INDEX_STDDEV_QUERY_TIME])))
 
-        if (row[-3] < 1.0 and row[-2] < P_VALUE):
+        if (row[INDEX_BASELINE_COMPARISON] < 1.0 and row[INDEX_STUDENT_P] < P_VALUE):
             tableRow[-1] = "\\textbf{%s}" % (tableRow[-1])
 
         print(INDENT * 5 + ' & '.join(tableRow) + ' \\\\')
@@ -303,7 +331,7 @@ def main(args):
     rows = parseDir(resultDir)
 
     # Replace methods with the specific index we want to see them in.
-    sort_key = lambda row: row[0] + row[1].replace('no_rewrites', '0').replace('size_rewrites', '1').replace('selectivity_rewrites', '2').replace('histogram_rewrites', '3')
+    sort_key = lambda sort_row: sort_row[0] + sort_row[1].replace('no_rewrites', '0').replace('size_rewrites', '1').replace('selectivity_rewrites', '2').replace('histogram_rewrites', '3')
 
     rows = sorted(rows, key = sort_key)
 
