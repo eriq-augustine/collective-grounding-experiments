@@ -1,5 +1,7 @@
 #!/usr/bin/ruby
 
+# Deprecated for the python one.
+
 OUT_FILENAME = 'out.txt'
 SKIP_DIRS = ['.', '..']
 

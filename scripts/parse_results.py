@@ -7,7 +7,7 @@ import sys
 import numpy
 import scipy.stats
 
-P_VALUE = 0.05
+P_VALUE = 0.01
 
 OUT_FILENAME = 'out.txt'
 
@@ -21,6 +21,8 @@ INDEX_QUERY_RESULTS = 2
 INDEX_INSTANTIATION_TIME = 3
 INDEX_GROUND_RULES = 4
 NUM_LOG_STATS = 5
+
+INDENT = '   '
 
 def cleanName(text):
     if (text == 'knowledge-graph-identification'):
@@ -168,21 +170,82 @@ def parseDir(resultDir):
     return results
 
 # Note: This function makes some strong assumptions about the structure of the rows.
-def makeTable(rows):
+def makeTables(rows):
+    makeDatasetTable(rows)
+    print("\n%%%%%\n")
+    makeEstimatorTable(rows)
+
+def makeEstimatorTable(rows):
     # for row in rows:
 
-    indent = '   '
-    print(indent * 1 + '\\begin{table}[h]')
-    print(indent * 2 + '\\tiny')
+    print(INDENT * 1 + '\\begin{table}[h]')
+    print(INDENT * 2 + '\\tiny')
     print()
-    print(indent * 2 + '\\begin{center}')
-    print(indent * 3 + '\\caption{Grounding time using different query rewriting.}')
+    print(INDENT * 2 + '\\begin{center}')
+    print(INDENT * 3 + '\\caption{Qualitative performance of different query cost estimators compared to the baseline aggregated over datasets.}')
     print()
-    print(indent * 3 + '\\begin{tabular}{ l | l | r }')
-    print(indent * 4 + '\\toprule')
-    print(indent * 5 + 'Dataset & Cost Estimator & Query Time (ms) \\\\')
+    print(INDENT * 3 + '\\begin{tabular}{ l | r | r | r }')
+    print(INDENT * 4 + '\\toprule')
+    print(INDENT * 5 + 'Cost Estimator & Improved & No Change & Worsened \\\\')
     print()
-    print(indent * 4 + '\\midrule')
+    print(INDENT * 4 + '\\midrule')
+    print()
+
+    # {estimator: [improved, noChange, worsened], ...}
+    stats = {}
+
+    for row in rows:
+        estimator = row[1]
+        comparedToBaseline = row[-3]
+        significant = row[-2] < P_VALUE
+
+        if (estimator == 'no_rewrites'):
+            continue
+
+        if (estimator not in stats):
+            stats[estimator] = [0, 0, 0]
+
+        if (not significant):
+            stats[estimator][1] += 1
+        elif (comparedToBaseline < 1.0):
+            stats[estimator][0] += 1
+        else:
+            stats[estimator][2] += 1
+
+    # Enforce order.
+    for estimator in ['size_rewrites', 'selectivity_rewrites', 'histogram_rewrites']:
+        [improved, noChange, worsened] = stats[estimator]
+
+        tableRow = [
+            cleanName(estimator),
+            improved,
+            noChange,
+            worsened
+        ]
+
+        print(INDENT * 5 + ' & '.join([str(val) for val in tableRow]) + ' \\\\')
+
+    print()
+    print(INDENT * 4 + '\\bottomrule')
+    print(INDENT * 3 + '\\end{tabular}')
+    print(INDENT * 3 + '\\label{table:estimator-results}')
+    print(INDENT * 2 + '\\end{center}')
+    print(INDENT * 1 + '\\end{table}')
+
+def makeDatasetTable(rows):
+    # for row in rows:
+
+    print(INDENT * 1 + '\\begin{table}[h]')
+    print(INDENT * 2 + '\\tiny')
+    print()
+    print(INDENT * 2 + '\\begin{center}')
+    print(INDENT * 3 + '\\caption{Grounding time using different query rewriting.}')
+    print()
+    print(INDENT * 3 + '\\begin{tabular}{ l | l | r }')
+    print(INDENT * 4 + '\\toprule')
+    print(INDENT * 5 + 'Dataset & Cost Estimator & Query Time (ms) \\\\')
+    print()
+    print(INDENT * 4 + '\\midrule')
     print()
 
     oldExample = None
@@ -193,7 +256,7 @@ def makeTable(rows):
         if (row[0] != oldExample):
             if (oldExample != None):
                 print()
-                print(indent * 5 + '\\hline')
+                print(INDENT * 5 + '\\hline')
                 print()
 
             oldExample = row[0]
@@ -207,56 +270,14 @@ def makeTable(rows):
         if (row[-3] < 1.0 and row[-2] < P_VALUE):
             tableRow[-1] = "\\textbf{%s}" % (tableRow[-1])
 
-        print(indent * 5 + ' & '.join(tableRow) + ' \\\\')
+        print(INDENT * 5 + ' & '.join(tableRow) + ' \\\\')
 
     print()
-    print(indent * 4 + '\\bottomrule')
-    print(indent * 3 + '\\end{tabular}')
-    print(indent * 3 + '\\label{table:resutls}')
-    print(indent * 2 + '\\end{center}')
-    print(indent * 1 + '\\end{table}')
-
-    '''
-               Citation Categories & No Rewrite & 123$\\pm$11 \\\\
-                  & Size & 85$\\pm$8 \\\\
-                  & Cardinality & 85$\\pm$6 \\\\
-                  & Histogram & \\textbf{76$\\pm$6} \\\\
-               \\hline
-               Entity Resolution & No Rewrite & 4307$\\pm$159 \\\\
-                  & Size & 5381$\\pm$200 \\\\
-                  & Cardinality & \\textbf{2364$\\pm$110} \\\\
-                  & Histogram & 2807$\\pm$88 \\\\
-               \\hline
-               Friendship & No Rewrite & 25304$\\pm$295 \\\\
-                  & Size & \\textbf{12315$\\pm$277} \\\\
-                  & Cardinality & \\textbf{12378$\\pm$259} \\\\
-                  & Histogram & \\textbf{12336$\\pm$259} \\\\
-               \\hline
-               Friendship Pairwise & No Rewrite & 36261$\\pm$463 \\\\
-                  & Size & \\textbf{11837$\\pm$494} \\\\
-                  & Cardinality & 32103$\\pm$389 \\\\
-                  & Histogram & 32258$\\pm$697 \\\\
-               \\hline
-               KGI & No Rewrite & 2379$\\pm$76 \\\\
-                  & Size & 1126$\\pm$92 \\\\
-                  & Cardinality & \\textbf{904$\\pm$36} \\\\
-                  & Histogram & 2362$\\pm$59 \\\\
-               \\hline
-               Preference Prediction & No Rewrite & 1059$\\pm$90 \\\\
-                  & Size & 926$\\pm$96 \\\\
-                  & Cardinality & 933$\\pm$96 \\\\
-                  & Histogram & \\textbf{924$\\pm$133} \\\\
-               \\hline
-               Social Network Analysis & No Rewrite & 751$\\pm$69 \\\\
-                  & Size & 753$\\pm$38 \\\\
-                  & Cardinality & 751$\\pm$46 \\\\
-                  & Histogram & 774$\\pm$66 \\\\
-               \\hline
-               Trust Prediction & No Rewrite & 2084$\\pm$71 \\\\
-                  & Size & \\textbf{764$\\pm$60} \\\\
-                  & Cardinality & 1555$\\pm$71 \\\\
-                  & Histogram & 1900$\\pm$72 \\\\
-   '''
+    print(INDENT * 4 + '\\bottomrule')
+    print(INDENT * 3 + '\\end{tabular}')
+    print(INDENT * 3 + '\\label{table:results}')
+    print(INDENT * 2 + '\\end{center}')
+    print(INDENT * 1 + '\\end{table}')
 
 def loadArgs(args):
     executable = args.pop(0)
@@ -287,7 +308,7 @@ def main(args):
     rows = sorted(rows, key = sort_key)
 
     if (table):
-        makeTable(rows)
+        makeTables(rows)
     else:
         print("\t".join(HEADERS))
         for row in rows:
