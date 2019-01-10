@@ -11,7 +11,7 @@ readonly SPECIAL_DATA_DIR="${BASE_DIR}/special-data"
 readonly OTHER_EXAMPLE_DIR="${BASE_DIR}/other-examples"
 
 readonly POSTGRES_DB='psl'
-readonly BASE_PSL_OPTION="--postgres ${POSTGRES_DB} -D log4j.threshold=TRACE -D persistedatommanager.throwaccessexception=false"
+readonly BASE_PSL_OPTION="--postgres ${POSTGRES_DB} -D log4j.threshold=TRACE -D persistedatommanager.throwaccessexception=false -D grounding.serial=true"
 
 readonly EXPERIMENT_NAMES=('no_rewrites' 'size_rewrites' 'selectivity_rewrites' 'histogram_rewrites')
 readonly EXPERIMENT_OPTIONS=('-D grounding.rewritequeries=false' '-D grounding.rewritequeries=true -D queryrewriter.costestimator=size' '-D grounding.rewritequeries=true -D queryrewriter.costestimator=selectivity' '-D grounding.rewritequeries=true -D queryrewriter.costestimator=histogram')
@@ -19,7 +19,7 @@ readonly EXPERIMENT_OPTIONS=('-D grounding.rewritequeries=false' '-D grounding.r
 # Examples that cannot use int ids.
 readonly STRING_IDS='entity-resolution simple-acquaintances user-modeling'
 
-readonly NUM_RUNS=10
+readonly NUM_RUNS=20
 
 readonly STDOUT_FILE='out.txt'
 readonly STDERR_FILE='out.err'

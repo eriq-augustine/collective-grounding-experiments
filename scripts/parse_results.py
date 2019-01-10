@@ -79,7 +79,7 @@ def parseFile(path):
                 hasRewrite = True
                 continue
 
-            match = re.search(r'- Grounding (\d+) rules with query:', line)
+            match = re.search(r'- Grounding (\d+) rule\(s\) with query:', line)
             if (match != None):
                 if (hasRewrite):
                     hasRewrite = False
