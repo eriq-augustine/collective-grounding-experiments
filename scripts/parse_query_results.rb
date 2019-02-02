@@ -8,7 +8,7 @@ SKIP_DIRS = ['.', '..']
 HEADERS = [
     'ID', 'Formula', 'Atom Count',
     'Explain Time', 'Estimated Cost', 'Estimated Rows',
-    'Actual Time', 'Actual Rows',
+    'First Query Response', 'Actual Time', 'Actual Rows',
     'Instantiation Time', 'Final Ground Count'
 ]
 
@@ -30,26 +30,45 @@ def parseFile(path)
             end
 
             if (match = line.match(/- Query \d+ -- Formula: (.+)$/))
+                # ID
                 row << results.size()
+                # Formula
                 row << match[1]
             elsif (match = line.match(/- Query \d+ -- Atom Count: (.+)$/))
+                # Atom Count
                 row << match[1]
             elsif (match = line.match(/- Begin EXPLAIN$/))
                 startTime = time
-            elsif (match = line.match(/- Estimated Cost: (\d+\.?\d*), Estimated Rows: (\d+)$/))
+            elsif (match = line.match(/- Estimated Cost: ([^,]+), Estimated Rows: (.+)$/))
+                # Explain Time
                 row << time - startTime
+                # Estimated Cost
                 row << match[1]
+                # Estimated Rows
                 row << match[2]
 
                 startTime = time
-            elsif (match = line.match(/- Got (\d+) results from query/))
+            elsif (match = line.match(/- First Query Response/))
+                # First Query Response
                 row << time - startTime
+            elsif (match = line.match(/- Query Complete/))
+                # Actual Time
+                row << time - startTime
+            elsif (match = line.match(/- Got (\d+) results from query/))
+                # Actual Rows
                 row << match[1]
                 
                 startTime = time
             elsif (match = line.match(/- Generated (\d+) ground rules with query:/))
+                # Instantiation Time
                 row << time - startTime
+                # Final Ground Count
                 row << match[1]
+
+                if (row.size() != HEADERS.size())
+                    puts "Size Mismatch. Got #{row.size()}, Expected #{HEADERS.size()}. ID: #{results.size()}."
+                    exit(1)
+                end
 
                 results << row
                 row = []
