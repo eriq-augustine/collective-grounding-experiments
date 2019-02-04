@@ -6,10 +6,10 @@ OUT_FILENAME = 'out.txt'
 SKIP_DIRS = ['.', '..']
 
 HEADERS = [
-    'ID', 'Formula', 'Atom Count',
-    'Explain Time', 'Estimated Cost', 'Estimated Rows',
-    'First Query Response', 'Actual Time', 'Actual Rows',
-    'Instantiation Time', 'Final Ground Count'
+    'Rule ID', 'Rewrite ID', 'Formula', 'Atom Count',
+    'Explain Time (ms)', 'Estimated Cost', 'Estimated Rows',
+    'First Query Response (ms)', 'Actual Time (ms)', 'Actual Rows',
+    'Instantiation Time (ms)', 'Final Ground Count'
 ]
 
 def parseFile(path)
@@ -34,8 +34,11 @@ def parseFile(path)
                 # This probably meant that a run was timed-out.
                 results << row
                 row = []
+            elsif (match = line.match(/- Found value (\d+) for option grounding.experiment.rule/))
+                # Rule ID
+                row << match[1]
             elsif (match = line.match(/- Query (\d+) -- Formula: (.+)$/))
-                # ID
+                # Query ID
                 row << match[1]
                 # Formula
                 row << match[2]

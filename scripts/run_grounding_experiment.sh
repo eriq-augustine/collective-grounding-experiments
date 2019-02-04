@@ -1,9 +1,11 @@
 #!/bin/bash
 
-BASE_OUT_DIR=`realpath 'results/individual-query'`
-AGGREGATE_OUT_FILENAME='all.out'
-CLEAR_CACHE_SCRIPT='/home/eriq/code/psl-grounding-experiments/scripts/clear_cache.sh'
-TIMEOUT_DURATION='5m'
+readonly THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+readonly BASE_OUT_DIR="${THIS_DIR}/../results/individual-query"
+
+readonly AGGREGATE_OUT_FILENAME='all.out'
+readonly CLEAR_CACHE_SCRIPT=$(realpath "${THIS_DIR}/clear_cache.sh")
+readonly TIMEOUT_DURATION='5m'
 
 function clearPostgresCache() {
     sudo "${CLEAR_CACHE_SCRIPT}"
@@ -12,7 +14,8 @@ function clearPostgresCache() {
 function run() {
     local cliDir=$1
     local outDir=$2
-    local queryNumber=$3
+    local ruleNumber=$3
+    local queryNumber=$4
 
     mkdir -p "${outDir}"
 
@@ -24,13 +27,14 @@ function run() {
         return
     fi
 
+    local extraOptions="-D grounding.experiment=true -D grounding.experiment.rule=${ruleNumber} -D grounding.experiment.query=${queryNumber}"
+
     clearPostgresCache
 
     pushd . > /dev/null
-    cd "${cliDir}"
+        cd "${cliDir}"
 
-        timeout -s 9 ${TIMEOUT_DURATION} ./run.sh -D experiment.query=$queryNumber > "${outPath}" 2> "${errPath}"
-        # ./run.sh -D experiment.query=$queryNumber > "${outPath}" 2> "${errPath}"
+        timeout -s 9 ${TIMEOUT_DURATION} ./run.sh ${extraOptions} > "${outPath}" 2> "${errPath}"
 
     popd > /dev/null
 }
@@ -41,45 +45,82 @@ function fetchQueryCount() {
     echo $(grep "org.linqs.psl.application.util.Grounding  - Found " "${path}" | sed 's/.*Found \([0-9]\+\) candidate queries\.$/\1/')
 }
 
-function run_example() {
+function fetchRuleCount() {
+    local path=$1
+
+    echo $(grep "Grounding experiment total rules:" "${path}" | sed 's/.*rules: \([0-9]\+\)$/\1/')
+}
+
+function run_single_rule() {
     local exampleDir=$1
+    local rule=$2
 
     local exampleName=`basename "${exampleDir}"`
     local cliDir="$exampleDir/cli"
-    local baseOutDir="${BASE_OUT_DIR}/${exampleName}"
+    local baseOutDir="${BASE_OUT_DIR}/${exampleName}/rule_${rule}"
     local aggregateOutPath="${baseOutDir}/${AGGREGATE_OUT_FILENAME}"
 
     # First run to fetch the number of queries.
-    local outDir="${baseOutDir}/-1"
-    run "${cliDir}" "${outDir}" "-1"
+    local outDir="${baseOutDir}/base"
+    run "${cliDir}" "${outDir}" "${rule}" "-1"
 
     local queryCount=$(fetchQueryCount "${outDir}/out.txt")
     echo "Found ${queryCount} queries."
+
+    # Also fetch the number of rules.
+    # We will always start with the first rule, but we will need to know how many rules there are after that.
+    local ruleCount=$(fetchRuleCount "${outDir}/out.txt")
 
     echo "" > "${aggregateOutPath}"
 
     for i in `seq -w 000 $((${queryCount} - 1))`; do
         echo "Running query ${i}."
 
-        local outDir="${baseOutDir}/q_${i}"
-        run "${cliDir}" "${outDir}" "${i}"
+        local outDir="${baseOutDir}/query_${i}"
+        run "${cliDir}" "${outDir}" "${rule}" "${i}"
     done
 
     # Append all output to a single file for more convenient parsing.
-    cat ${baseOutDir}/q_*/out.txt >> "${aggregateOutPath}"
+    cat ${baseOutDir}/query_*/out.txt >> "${aggregateOutPath}"
+
+    return "${ruleCount}"
+}
+
+function run_example() {
+    local exampleDir=$1
+
+    local exampleName=`basename "${exampleDir}"`
+    local baseOutDir="${BASE_OUT_DIR}/${exampleName}"
+
+    # We don't know how many rules there are until we run,
+    # but there should be at least one rule.
+    run_single_rule "${exampleDir}" 000
+    local ruleCount=$?
+    echo "Found ${ruleCount} rules."
+
+    for i in `seq -w 001 $((${ruleCount} - 1))`; do
+        run_single_rule "${exampleDir}" "${i}"
+    done
+
+    local aggregateOutPath="${BASE_OUT_DIR}/${exampleName}/${AGGREGATE_OUT_FILENAME}"
+
+    # Append all output to a single file for more convenient parsing.
+    cat ${baseOutDir}/*/${AGGREGATE_OUT_FILENAME} >> "${aggregateOutPath}"
 }
 
 function main() {
-    if [[ $# -ne 1 ]]; then
-        echo "USAGE: $0 <example dir>"
+    if [[ $# -eq 0 ]]; then
+        echo "USAGE: $0 <example dir> ..."
         exit 1
     fi
 
-   trap exit SIGINT
+    trap exit SIGINT
 
-   local exampleDir=$1
+    local exampleDir=$1
 
-   run_example "${exampleDir}"
+    for exampleDir in "$@"; do
+        run_example "${exampleDir}"
+    done
 }
 
 main "$@"

@@ -15,3 +15,5 @@ sync; echo 3 > /proc/sys/vm/drop_caches
 
 systemctl start postgresql.service
 createdb -U postgres psl
+
+wait
