@@ -29,11 +29,16 @@ def parseFile(path)
                 time = match[1].to_i()
             end
 
-            if (match = line.match(/- Query \d+ -- Formula: (.+)$/))
+            if (match = line.match(/^Running PSL Inference$/) && row.size() != 0)
+                # We started a new log/run without the other one finishing.
+                # This probably meant that a run was timed-out.
+                results << row
+                row = []
+            elsif (match = line.match(/- Query (\d+) -- Formula: (.+)$/))
                 # ID
-                row << results.size()
-                # Formula
                 row << match[1]
+                # Formula
+                row << match[2]
             elsif (match = line.match(/- Query \d+ -- Atom Count: (.+)$/))
                 # Atom Count
                 row << match[1]
@@ -43,7 +48,7 @@ def parseFile(path)
                 # Explain Time
                 row << time - startTime
                 # Estimated Cost
-                row << match[1]
+                row << match[1].to_i()
                 # Estimated Rows
                 row << match[2]
 
@@ -66,7 +71,7 @@ def parseFile(path)
                 row << match[1]
 
                 if (row.size() != HEADERS.size())
-                    puts "Size Mismatch. Got #{row.size()}, Expected #{HEADERS.size()}. ID: #{results.size()}."
+                    puts "Size Mismatch. Got #{row.size()}, Expected #{HEADERS.size()}. Number: #{results.size()}."
                     exit(1)
                 end
 
@@ -75,6 +80,11 @@ def parseFile(path)
             end
         }
     }
+
+    if (row.size() != 0)
+        # This probably meant that the last run timed-out.
+        results << row
+    end
 
    return results
 end
