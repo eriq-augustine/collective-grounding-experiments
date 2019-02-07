@@ -81,7 +81,7 @@ function run_single_rule() {
     done
 
     # Append all output to a single file for more convenient parsing.
-    cat ${baseOutDir}/query_*/out.txt >> "${aggregateOutPath}"
+    cat ${baseOutDir}/query_*/out.txt > "${aggregateOutPath}"
 
     return "${ruleCount}"
 }
@@ -105,7 +105,7 @@ function run_example() {
     local aggregateOutPath="${BASE_OUT_DIR}/${exampleName}/${AGGREGATE_OUT_FILENAME}"
 
     # Append all output to a single file for more convenient parsing.
-    cat ${baseOutDir}/*/${AGGREGATE_OUT_FILENAME} >> "${aggregateOutPath}"
+    cat ${baseOutDir}/*/${AGGREGATE_OUT_FILENAME} > "${aggregateOutPath}"
 }
 
 function main() {
