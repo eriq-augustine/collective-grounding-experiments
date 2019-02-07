@@ -2,6 +2,8 @@
 
 # Deprecated for the python one.
 
+require 'bigdecimal'
+
 OUT_FILENAME = 'out.txt'
 SKIP_DIRS = ['.', '..']
 
@@ -9,7 +11,8 @@ HEADERS = [
     'Rule ID', 'Rewrite ID', 'Formula', 'Atom Count',
     'Explain Time (ms)', 'Estimated Cost', 'Estimated Rows',
     'First Query Response (ms)', 'Actual Time (ms)', 'Actual Rows',
-    'Instantiation Time (ms)', 'Final Ground Count'
+    'Instantiation Time (ms)', 'Final Ground Count',
+    'Total Time (ms)'
 ]
 
 def parseFile(path)
@@ -51,9 +54,9 @@ def parseFile(path)
                 # Explain Time
                 row << time - startTime
                 # Estimated Cost
-                row << match[1].to_i()
+                row << BigDecimal(match[1]).truncate().to_s()
                 # Estimated Rows
-                row << match[2]
+                row << BigDecimal(match[2]).truncate().to_s()
 
                 startTime = time
             elsif (match = line.match(/- First Query Response/))
@@ -73,8 +76,8 @@ def parseFile(path)
                 # Final Ground Count
                 row << match[1]
 
-                if (row.size() != HEADERS.size())
-                    puts "Size Mismatch. Got #{row.size()}, Expected #{HEADERS.size()}. Number: #{results.size()}."
+                if (row.size() != HEADERS.size() - 1)
+                    puts "Size Mismatch. Got #{row.size()}, Expected #{HEADERS.size() - 1}. Number: #{results.size()}."
                     exit(1)
                 end
 
@@ -89,7 +92,12 @@ def parseFile(path)
         results << row
     end
 
-   return results
+    # We left out the final column, since it is computed.
+    results.each{|row|
+        row << row[HEADERS.index('Actual Time (ms)')].to_i() + row[HEADERS.index('Instantiation Time (ms)')].to_i()
+    }
+
+    return results
 end
 
 def loadArgs(args)
