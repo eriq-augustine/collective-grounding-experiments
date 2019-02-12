@@ -9,7 +9,7 @@ SKIP_DIRS = ['.', '..']
 
 HEADERS = [
     'Rule ID', 'Rewrite ID', 'Formula', 'Atom Count',
-    'Explain Time (ms)', 'Estimated Cost', 'Estimated Rows',
+    'Explain Time (ms)', 'Estimated Cost', 'Startup Cost', 'Estimated Rows',
     'First Query Response (ms)', 'Actual Time (ms)', 'Actual Rows',
     'Instantiation Time (ms)', 'Final Ground Count',
     'Total Time (ms)'
@@ -50,13 +50,15 @@ def parseFile(path)
                 row << match[1]
             elsif (match = line.match(/- Begin EXPLAIN$/))
                 startTime = time
-            elsif (match = line.match(/- Estimated Cost: ([^,]+), Estimated Rows: (.+)$/))
+            elsif (match = line.match(/- Estimated Cost: ([^,]+), Startup Cost: ([^,]+), Estimated Rows: (.+)$/))
                 # Explain Time
                 row << time - startTime
                 # Estimated Cost
                 row << BigDecimal(match[1]).truncate().to_s()
-                # Estimated Rows
+                # Startup Cost
                 row << BigDecimal(match[2]).truncate().to_s()
+                # Estimated Rows
+                row << BigDecimal(match[3]).truncate().to_s()
 
                 startTime = time
             elsif (match = line.match(/- First Query Response/))
