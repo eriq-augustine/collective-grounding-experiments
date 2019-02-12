@@ -5,7 +5,7 @@ readonly BASE_OUT_DIR="${THIS_DIR}/../results/individual-query"
 
 readonly AGGREGATE_OUT_FILENAME='all.out'
 readonly CLEAR_CACHE_SCRIPT=$(realpath "${THIS_DIR}/clear_cache.sh")
-readonly TIMEOUT_DURATION='5m'
+readonly TIMEOUT_DURATION='3m'
 
 function clearPostgresCache() {
     sudo "${CLEAR_CACHE_SCRIPT}"
