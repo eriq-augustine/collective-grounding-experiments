@@ -27,7 +27,7 @@ function run() {
         return
     fi
 
-    local extraOptions="-D grounding.experiment=true -D grounding.experiment.rule=${ruleNumber} -D grounding.experiment.query=${queryNumber}"
+    local extraOptions="-D grounding.experiment=true -D grounding.experiment.rulequeries=${ruleNumber}:${queryNumber}"
 
     clearPostgresCache
 
