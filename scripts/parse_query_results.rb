@@ -7,6 +7,8 @@ require 'bigdecimal'
 OUT_FILENAME = 'out.txt'
 SKIP_DIRS = ['.', '..']
 
+SIGNIFICANT_PLACES = 4
+
 BASE_HEADERS = [
     'Rule ID', 'Rewrite ID', 'Formula', 'Atom Count',
     'Explain Time (ms)', 'Estimated Cost', 'Startup Cost', 'Estimated Rows',
@@ -151,21 +153,21 @@ def parseFile(path)
         row << w
 
         # D
-        row << d
+        row << d.round(SIGNIFICANT_PLACES)
         # Static D (D_s)
-        row << STATIC_D
+        row << STATIC_D.round(SIGNIFICANT_PLACES)
         # Non-Startup D (D_ns)
-        row << d_ns
+        row << d_ns.round(SIGNIFICANT_PLACES)
 
         # M
-        row << m
+        row << m.round(SIGNIFICANT_PLACES)
         # Static M (M_s)
-        row << STATIC_M
+        row << STATIC_M.round(SIGNIFICANT_PLACES)
 
         # M * W
-        row << m * w
+        row << (m * w).round(SIGNIFICANT_PLACES)
         # M_s * W
-        row << STATIC_M * w
+        row << (STATIC_M * w).round(SIGNIFICANT_PLACES)
 
         # Total Time
         row << row[HEADERS.index('Actual Time (ms)')].to_i() + row[HEADERS.index('Instantiation Time (ms)')].to_i()
