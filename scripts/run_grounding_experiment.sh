@@ -24,7 +24,7 @@ function run() {
 
     if [[ -e "${outPath}" ]]; then
         echo "Output file already exists, skipping: ${outPath}"
-        return
+        return 0
     fi
 
     local extraOptions="-D grounding.experiment=true -D grounding.experiment.rulequeries=${ruleNumber}:${queryNumber}"
@@ -48,7 +48,7 @@ function fetchQueryCount() {
 function fetchRuleCount() {
     local path=$1
 
-    echo $(grep "Grounding experiment total rules:" "${path}" | sed 's/.*rules: \([0-9]\+\)$/\1/')
+    echo $(grep "Grounding experiment total available rules:" "${path}" | sed 's/.*rules: \([0-9]\+\)$/\1/')
 }
 
 function run_single_rule() {
@@ -74,7 +74,7 @@ function run_single_rule() {
     echo "" > "${aggregateOutPath}"
 
     for i in `seq -w 000 $((${queryCount} - 1))`; do
-        echo "Running query ${i}."
+        echo "Running query ${rule}:${i}."
 
         local outDir="${baseOutDir}/query_${i}"
         run "${cliDir}" "${outDir}" "${rule}" "${i}"

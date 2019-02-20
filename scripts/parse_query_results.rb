@@ -68,7 +68,7 @@ def parseFile(path)
                 # This probably meant that a run was timed-out.
                 results << row
                 row = []
-            elsif (match = line.match(/- Found value (\d+) for option grounding.experiment.rule/))
+            elsif (match = line.match(/- Grounding experiment on rule (\d+) -- /))
                 # Rule ID
                 row << match[1].to_i()
             elsif (match = line.match(/- Query (\d+) -- Formula: (.+)$/))
@@ -115,7 +115,8 @@ def parseFile(path)
                 row << match[1].to_i()
 
                 if (row.size() != BASE_HEADERS.size())
-                    puts "Size Mismatch. Got #{row.size()}, Expected #{BASE_HEADERS.size()}. Number: #{results.size()}."
+                    puts "Size Mismatch. Got #{row.size()}, Expected #{BASE_HEADERS.size()}. Result Number: #{results.size()}."
+                    puts "Row: #{row.join("\t")}"
                     exit(1)
                 end
 
