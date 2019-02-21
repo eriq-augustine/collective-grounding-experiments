@@ -7,7 +7,7 @@ require 'bigdecimal'
 OUT_FILENAME = 'out.txt'
 SKIP_DIRS = ['.', '..']
 
-SIGNIFICANT_PLACES = 4
+SIGNIFICANT_PLACES = 5
 
 BASE_HEADERS = [
     'Rule ID', 'Rewrite ID', 'Formula', 'Atom Count',
@@ -18,30 +18,60 @@ BASE_HEADERS = [
 
 # Computed Columns.
 COMPUTED_HEADERS = [
+    'Combined Estimate',
     'Non-Startup Time',
     'Width',
     'D',
+    'D_r',
     'D_s',
+    'D_rs',
     'D_ns',
+    'D_ce',
     'M',
     'M_s',
     'M * W',
     'M_s * W',
     'Total Time (ms)',
     'Ideal Score',
+    'Ideal Row Score',
     'Score_s',
+    'Score_rs',
     'Score_ns',
+    'Score_ce',
     # Comparative Columns.
     'Actual Rank',
-    'Score_i Rank',
-    'Score_s Rank',
-    'Score_ns Rank'
+    'i Rank',
+    's Rank',
+    'rs Rank',
+    'ns Rank',
+    'ce Rank',
+    # Score Evalaution.
+    # How many positions away from 0 did you rank the best.
+    'i Misrank',
+    's Misrank',
+    'rs Misrank',
+    'ns Misrank',
+    'ce Misrank',
+    # How much time did you lose from the best.
+    'i Best Time Δ',
+    's Best Time Δ',
+    'rs Best Time Δ',
+    'ns Best Time Δ',
+    'ce Best Time Δ',
+    # How much time did you lose from the base (no rewrite).
+    'i Base Time Δ',
+    's Base Time Δ',
+    'rs Base Time Δ',
+    'ns Base Time Δ',
+    'ce Base Time Δ',
 ]
 
 HEADERS = BASE_HEADERS + COMPUTED_HEADERS
 
-STATIC_D = 0.0341
-STATIC_M = 0.0122
+STATIC_D = 0.018
+STATIC_D_R = 0.0006
+STATIC_D_CE = 0.0036
+STATIC_M = 0.0015
 
 def parseFile(path)
    results = []
@@ -126,7 +156,7 @@ def parseFile(path)
         }
     }
 
-    if (row.size() != 0)
+    if (row.size() < 0)
         # This probably meant that the last run timed-out.
         results << row
     end
@@ -135,7 +165,7 @@ def parseFile(path)
 
     results.each{|row|
         # Skip incomplete runs.
-        if (row.size() != BASE_HEADERS.size())
+        if (row.size() < BASE_HEADERS.size())
             next
         end
 
@@ -143,11 +173,17 @@ def parseFile(path)
         nonStartupCost = row[HEADERS.index('Estimated Cost')].to_i() - row[HEADERS.index('Startup Cost')].to_i()
         row << nonStartupCost
 
+        # Combined Estimate
+        combinedEstimate = Math.sqrt(row[HEADERS.index('Estimated Cost')].to_i() * row[HEADERS.index('Estimated Rows')].to_i()).to_i()
+        row << nonStartupCost
+
         # Scoring
 
         w = ruleWidths[row[HEADERS.index('Rule ID')]]
         d = row[HEADERS.index('Actual Time (ms)')].to_f() / row[HEADERS.index('Estimated Cost')].to_f()
+        d_r = row[HEADERS.index('Actual Time (ms)')].to_f() / row[HEADERS.index('Estimated Rows')].to_f()
         d_ns = row[HEADERS.index('Actual Time (ms)')].to_f() / nonStartupCost.to_f()
+        d_ce = row[HEADERS.index('Actual Time (ms)')].to_f() / combinedEstimate.to_f()
         m = row[HEADERS.index('Instantiation Time (ms)')].to_f() / row[HEADERS.index('Actual Rows')].to_f()
 
         # Width (W)
@@ -155,10 +191,16 @@ def parseFile(path)
 
         # D
         row << d.round(SIGNIFICANT_PLACES)
+        # D computed from estimated rows instead of cost (D_r).
+        row << d_r.round(SIGNIFICANT_PLACES)
         # Static D (D_s)
         row << STATIC_D.round(SIGNIFICANT_PLACES)
+        # Static D_r (D_rs)
+        row << STATIC_D_R.round(SIGNIFICANT_PLACES)
         # Non-Startup D (D_ns)
         row << d_ns.round(SIGNIFICANT_PLACES)
+        # Combined Estimate D (D_ce)
+        row << d_ce.round(SIGNIFICANT_PLACES)
 
         # M
         row << m.round(SIGNIFICANT_PLACES)
@@ -174,11 +216,21 @@ def parseFile(path)
         row << row[HEADERS.index('Actual Time (ms)')].to_i() + row[HEADERS.index('Instantiation Time (ms)')].to_i()
         # Ideal Score (Score_i)
         row << (row[HEADERS.index('Estimated Cost')].to_f() * d + row[HEADERS.index('Estimated Rows')].to_f() * m * w).to_i()
+        # Ideal Row-based Score (Score_ir)
+        row << (row[HEADERS.index('Estimated Rows')].to_f() * d_r + row[HEADERS.index('Estimated Rows')].to_f() * STATIC_M * w).to_i()
         # Static Score (Score_s)
         row << (row[HEADERS.index('Estimated Cost')].to_f() * STATIC_D + row[HEADERS.index('Estimated Rows')].to_f() * STATIC_M * w).to_i()
+        # Static Row-Based Score (Score_rs)
+        row << (row[HEADERS.index('Estimated Rows')].to_f() * STATIC_D_R + row[HEADERS.index('Estimated Rows')].to_f() * STATIC_M * w).to_i()
         # Non-Startup Score (Score_ns)
         row << (row[HEADERS.index('Estimated Cost')].to_f() * d_ns + row[HEADERS.index('Estimated Rows')].to_f() * STATIC_M * w).to_i()
+        # Static Combined Estimate Score (Score_ce)
+        row << (combinedEstimate * STATIC_D_CE + row[HEADERS.index('Estimated Rows')].to_f() * STATIC_M * w).to_i()
     }
+
+    scoringMetrics = ['Total Time (ms)', 'Ideal Score', 'Score_s', 'Score_rs', 'Score_ns', 'Score_ce']
+    scoreRankingMetrics = ['i Rank', 's Rank', 'rs Rank', 'ns Rank', 'ce Rank']
+    allRankingMetrics = ['Actual Rank'] + scoreRankingMetrics
 
     # After all rows have their base computed stats, compute ranks.
     # {metricName => {rule => [[metricValue, rowIndex], ...], ...}, ...}
@@ -190,12 +242,12 @@ def parseFile(path)
             next
         end
 
-        ['Total Time (ms)', 'Ideal Score', 'Score_s', 'Score_ns'].each{|metric|
+        scoringMetrics.each{|metric|
             ranks[metric][row[HEADERS.index('Rule ID')]] << [row[HEADERS.index(metric)], i]
         }
     }
 
-    ['Total Time (ms)', 'Ideal Score', 'Score_s', 'Score_ns'].each{|metric|
+    scoringMetrics.each{|metric|
         ranks[metric].each_pair{|rule, runs|
             runs.sort!()
 
@@ -203,6 +255,60 @@ def parseFile(path)
                 rowIndex = values[1]
                 results[rowIndex] << rank
             }
+        }
+    }
+
+    # Best total times for the best of each rule.
+    # {rule: totalTime, ...}
+    totalTimes = {}
+    baseTimes = {}
+
+    results.each{|row|
+        # Skip incomplete runs.
+        if (row.size() < BASE_HEADERS.size())
+            next
+        end
+
+        rule = row[HEADERS.index('Rule ID')]
+
+        if (row[HEADERS.index('Rewrite ID')] == 0)
+            baseTimes[rule] = row[HEADERS.index('Total Time (ms)')]
+        end
+
+        # How far off from ideal was each score.
+        scoreRankingMetrics.each{|ranking|
+            if (row[HEADERS.index('Actual Rank')] == 0)
+                row << row[HEADERS.index(ranking)]
+                totalTimes[rule] = row[HEADERS.index('Total Time (ms)')]
+            else
+                row << 0
+            end
+        }
+    }
+
+    # How much time was lost choosing a suboptimal query.
+    results.each{|row|
+        # Skip incomplete runs.
+        if (row.size() < BASE_HEADERS.size())
+            next
+        end
+
+        rule = row[HEADERS.index('Rule ID')]
+
+        scoreRankingMetrics.each{|ranking|
+            if (row[HEADERS.index(ranking)] == 0)
+                row << row[HEADERS.index('Total Time (ms)')] - totalTimes[rule]
+            else
+                row << 0
+            end
+        }
+
+        scoreRankingMetrics.each{|ranking|
+            if (row[HEADERS.index(ranking)] == 0)
+                row << row[HEADERS.index('Total Time (ms)')] - baseTimes[rule]
+            else
+                row << 0
+            end
         }
     }
 
