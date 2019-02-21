@@ -14,8 +14,7 @@ function clearPostgresCache() {
 function run() {
     local cliDir=$1
     local outDir=$2
-    local ruleNumber=$3
-    local queryNumber=$4
+    local queryId=$3
 
     mkdir -p "${outDir}"
 
@@ -27,7 +26,7 @@ function run() {
         return 0
     fi
 
-    local extraOptions="-D grounding.experiment=true -D grounding.experiment.rulequeries=${ruleNumber}:${queryNumber}"
+    local extraOptions="-D grounding.experiment=true -D grounding.experiment.rulequeries=${queryId}"
 
     clearPostgresCache
 
@@ -62,7 +61,7 @@ function run_single_rule() {
 
     # First run to fetch the number of queries.
     local outDir="${baseOutDir}/base"
-    run "${cliDir}" "${outDir}" "${rule}" "-1"
+    run "${cliDir}" "${outDir}" "${rule}:-1"
 
     local queryCount=$(fetchQueryCount "${outDir}/out.txt")
     echo "Found ${queryCount} queries."
@@ -77,7 +76,7 @@ function run_single_rule() {
         echo "Running query ${rule}:${i}."
 
         local outDir="${baseOutDir}/query_${i}"
-        run "${cliDir}" "${outDir}" "${rule}" "${i}"
+        run "${cliDir}" "${outDir}" "${rule}:${i}"
     done
 
     # Append all output to a single file for more convenient parsing.
