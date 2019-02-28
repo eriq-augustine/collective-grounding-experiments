@@ -69,14 +69,15 @@ MISRANK_COLUMNS = [
     'ce Misrank'
 ]
 
-BEST_TIME_DELTA_COLUMNS = [
-    # How much time did you lose from the best.
-    'i Best Time Δ',
-    'ir Best Time Δ',
-    's Best Time Δ',
-    'rs Best Time Δ',
-    'ns Best Time Δ',
-    'ce Best Time Δ'
+TIME_COLUMNS = [
+    'Base Time',
+    'Best Time',
+    'i Time',
+    'ir Time',
+    's Time',
+    'rs Time',
+    'ns Time',
+    'ce Time'
 ]
 
 BASE_TIME_DELTA_COLUMNS = [
@@ -89,14 +90,25 @@ BASE_TIME_DELTA_COLUMNS = [
     'ce Base Time Δ',
 ]
 
+BEST_TIME_DELTA_COLUMNS = [
+    # How much time did you lose from the best.
+    'i Best Time Δ',
+    'ir Best Time Δ',
+    's Best Time Δ',
+    'rs Best Time Δ',
+    'ns Best Time Δ',
+    'ce Best Time Δ'
+]
+
 # Computed Columns.
 COMPUTED_HEADERS =
   BASE_COMPUTED_COLUMNS +
   SCORE_COLUMNS +
   RANK_COLUMNS +
   MISRANK_COLUMNS +
-  BEST_TIME_DELTA_COLUMNS +
-  BASE_TIME_DELTA_COLUMNS
+  TIME_COLUMNS +
+  BASE_TIME_DELTA_COLUMNS +
+  BEST_TIME_DELTA_COLUMNS
 
 HEADERS = BASE_HEADERS + COMPUTED_HEADERS
 
@@ -192,6 +204,7 @@ def parseFile(path)
         # This probably meant that the last run timed-out.
         results << row
     end
+    row = nil
 
     # Now comput the remaining columns.
 
@@ -290,59 +303,67 @@ def parseFile(path)
         }
     }
 
-    # Best total times for the best of each rule.
-    # {rule: totalTime, ...}
-    totalTimes = {}
-    baseTimes = {}
-
+    # Misranks
     results.each{|row|
         # Skip incomplete runs.
         if (row.size() < BASE_HEADERS.size())
             next
-        end
-
-        rule = row[HEADERS.index('Rule ID')]
-
-        if (row[HEADERS.index('Rewrite ID')] == 0)
-            baseTimes[rule] = row[HEADERS.index('Total Time (ms)')]
         end
 
         # How far off from ideal was each score.
         scoreRankingMetrics.each{|ranking|
             if (row[HEADERS.index('Actual Rank')] == 0)
                 row << row[HEADERS.index(ranking)]
-                totalTimes[rule] = row[HEADERS.index('Total Time (ms)')]
             else
                 row << 0
             end
         }
     }
 
-    # How much time was lost choosing a suboptimal query.
-    results.each{|row|
-        # Skip incomplete runs.
-        if (row.size() < BASE_HEADERS.size())
-            next
-        end
+   # Timing information
+   # {rule => {timeColumn => time, ...}, ...}
+   times = Hash.new{|hash, key| hash[key] = {}}
 
-        rule = row[HEADERS.index('Rule ID')]
+   rankTimeColumns = (['Rewrite ID'] + RANK_COLUMNS).zip(TIME_COLUMNS)
+   results.each{|row|
+      # Skip incomplete runs.
+      if (row.size() < BASE_HEADERS.size())
+         next
+      end
 
-        scoreRankingMetrics.each{|ranking|
-            if (row[HEADERS.index(ranking)] == 0)
-                row << row[HEADERS.index('Total Time (ms)')] - totalTimes[rule]
+      rankTimeColumns.each{|rankColumn, timeColumn|
+         if (row[HEADERS.index(rankColumn)] == 0)
+            time = row[HEADERS.index('Total Time (ms)')]
+
+            times[row[HEADERS.index('Rule ID')]][timeColumn] = time
+            row << time
+         else
+            row << 0
+         end
+      }
+   }
+
+   # Now do the time deltas.
+   comparisonTimeColumns = ['Base Time', 'Best Time']
+   deltaRankTimeColumns = (RANK_COLUMNS - ['Actual Rank']).zip(TIME_COLUMNS - comparisonTimeColumns)
+
+   results.each{|row|
+      # Skip incomplete runs.
+      if (row.size() < BASE_HEADERS.size())
+         next
+      end
+
+      comparisonTimeColumns.each{|comparisonTimeColumn|
+         deltaRankTimeColumns.each{|rankColumn, timeColumn|
+            if (row[HEADERS.index(rankColumn)] == 0)
+               ruleId = row[HEADERS.index('Rule ID')]
+               row << times[ruleId][timeColumn] - times[ruleId][comparisonTimeColumn]
             else
-                row << 0
+               row << 0
             end
-        }
-
-        scoreRankingMetrics.each{|ranking|
-            if (row[HEADERS.index(ranking)] == 0)
-                row << row[HEADERS.index('Total Time (ms)')] - baseTimes[rule]
-            else
-                row << 0
-            end
-        }
-    }
+         }
+      }
+   }
 
     return results
 end
