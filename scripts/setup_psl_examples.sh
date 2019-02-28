@@ -10,6 +10,7 @@ readonly PSL_EXAMPLES_BRANCH='develop'
 readonly SPECIAL_DATA_DIR="${BASE_DIR}/special-data"
 readonly FRIENDSHIP_PAIRWISE_DIR="${SPECIAL_DATA_DIR}/other-examples/friendship-pairwise"
 readonly AUGMENTED_FRIENDSHIP_DIR="${SPECIAL_DATA_DIR}/augmented-data/friendship"
+readonly FAMILIAL_ER_DIR="${SPECIAL_DATA_DIR}/other-examples/familial-er"
 
 readonly POSTGRES_DB='psl'
 readonly BASE_PSL_OPTION="--postgres ${POSTGRES_DB} -D log4j.threshold=TRACE -D persistedatommanager.throwaccessexception=false -D grounding.serial=true"
@@ -48,8 +49,9 @@ function special_fixes() {
    rm -rf "${PSL_EXAMPLES_DIR}/friendship/data/friendship"
    cp -r "${AUGMENTED_FRIENDSHIP_DIR}" "${PSL_EXAMPLES_DIR}/friendship/data/friendship"
 
-   # Copy in pairwise friendship
+   # Copy in other examples
    cp -r "${FRIENDSHIP_PAIRWISE_DIR}" "${PSL_EXAMPLES_DIR}/"
+   cp -r "${FAMILIAL_ER_DIR}" "${PSL_EXAMPLES_DIR}/"
 }
 
 # Common to all examples.
