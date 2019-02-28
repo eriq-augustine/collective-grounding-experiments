@@ -9,15 +9,20 @@ SKIP_DIRS = ['.', '..']
 
 SIGNIFICANT_PLACES = 5
 
-BASE_HEADERS = [
-    'Rule ID', 'Rewrite ID', 'Formula', 'Atom Count',
+RUN_IDENTIFIERS = [
+    'Rule ID', 'Rewrite ID',
+    'Formula', 'Atom Count'
+]
+
+RUN_OBSERVED_STATS = [
     'Explain Time (ms)', 'Estimated Cost', 'Startup Cost', 'Estimated Rows',
     'First Query Response (ms)', 'Actual Time (ms)', 'Actual Rows',
     'Instantiation Time (ms)', 'Final Ground Count'
 ]
 
-# Computed Columns.
-COMPUTED_HEADERS = [
+BASE_HEADERS = RUN_IDENTIFIERS + RUN_OBSERVED_STATS
+
+BASE_COMPUTED_COLUMNS = [
     'Combined Estimate',
     'Non-Startup Time',
     'Width',
@@ -31,40 +36,67 @@ COMPUTED_HEADERS = [
     'M_s',
     'M * W',
     'M_s * W',
-    'Total Time (ms)',
+    'Total Time (ms)'
+]
+
+SCORE_COLUMNS = [
     'Ideal Score',
     'Ideal Row Score',
     'Score_s',
     'Score_rs',
     'Score_ns',
-    'Score_ce',
-    # Comparative Columns.
+    'Score_ce'
+]
+
+RANK_COLUMNS = [
     'Actual Rank',
     'i Rank',
+    'ir Rank',
     's Rank',
     'rs Rank',
     'ns Rank',
-    'ce Rank',
+    'ce Rank'
+]
+
+MISRANK_COLUMNS = [
     # Score Evalaution.
     # How many positions away from 0 did you rank the best.
     'i Misrank',
+    'ir Misrank',
     's Misrank',
     'rs Misrank',
     'ns Misrank',
-    'ce Misrank',
+    'ce Misrank'
+]
+
+BEST_TIME_DELTA_COLUMNS = [
     # How much time did you lose from the best.
     'i Best Time Δ',
+    'ir Best Time Δ',
     's Best Time Δ',
     'rs Best Time Δ',
     'ns Best Time Δ',
-    'ce Best Time Δ',
+    'ce Best Time Δ'
+]
+
+BASE_TIME_DELTA_COLUMNS = [
     # How much time did you lose from the base (no rewrite).
     'i Base Time Δ',
+    'ir Base Time Δ',
     's Base Time Δ',
     'rs Base Time Δ',
     'ns Base Time Δ',
     'ce Base Time Δ',
 ]
+
+# Computed Columns.
+COMPUTED_HEADERS =
+  BASE_COMPUTED_COLUMNS +
+  SCORE_COLUMNS +
+  RANK_COLUMNS +
+  MISRANK_COLUMNS +
+  BEST_TIME_DELTA_COLUMNS +
+  BASE_TIME_DELTA_COLUMNS
 
 HEADERS = BASE_HEADERS + COMPUTED_HEADERS
 
@@ -228,9 +260,9 @@ def parseFile(path)
         row << (combinedEstimate * STATIC_D_CE + row[HEADERS.index('Estimated Rows')].to_f() * STATIC_M * w).to_i()
     }
 
-    scoringMetrics = ['Total Time (ms)', 'Ideal Score', 'Score_s', 'Score_rs', 'Score_ns', 'Score_ce']
-    scoreRankingMetrics = ['i Rank', 's Rank', 'rs Rank', 'ns Rank', 'ce Rank']
-    allRankingMetrics = ['Actual Rank'] + scoreRankingMetrics
+    scoringMetrics = ['Total Time (ms)'] + SCORE_COLUMNS
+    scoreRankingMetrics = RANK_COLUMNS - ['Actual Rank']
+    allRankingMetrics = RANK_COLUMNS
 
     # After all rows have their base computed stats, compute ranks.
     # {metricName => {rule => [[metricValue, rowIndex], ...], ...}, ...}
