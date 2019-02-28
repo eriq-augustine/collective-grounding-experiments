@@ -5,6 +5,7 @@ readonly BASE_OUT_DIR="${THIS_DIR}/../results/individual-query"
 
 readonly AGGREGATE_OUT_FILENAME='all.out'
 readonly CLEAR_CACHE_SCRIPT=$(realpath "${THIS_DIR}/clear_cache.sh")
+readonly PARSE_CONFIGS_SCRIPT=$(realpath "${THIS_DIR}/parse_results_for_runs.rb")
 readonly TIMEOUT_DURATION='3m'
 
 function clearPostgresCache() {
@@ -90,6 +91,7 @@ function run_example() {
 
     local exampleName=`basename "${exampleDir}"`
     local baseOutDir="${BASE_OUT_DIR}/${exampleName}"
+    local cliDir="$exampleDir/cli"
 
     # We don't know how many rules there are until we run,
     # but there should be at least one rule.
@@ -105,6 +107,23 @@ function run_example() {
 
     # Append all output to a single file for more convenient parsing.
     cat ${baseOutDir}/*/${AGGREGATE_OUT_FILENAME} > "${aggregateOutPath}"
+
+    # Run some select configs.
+
+    local configId=''
+    for config in $("${PARSE_CONFIGS_SCRIPT}" "${aggregateOutPath}"); do
+        if [[ $configId == '' ]]; then
+            configId=$config
+            continue
+        fi
+
+        echo "Running select config: ${configId} (${config})."
+
+        local outDir="${baseOutDir}/full_run_${configId}"
+        run "${cliDir}" "${outDir}" "${config}"
+
+        configId=''
+    done
 }
 
 function main() {
