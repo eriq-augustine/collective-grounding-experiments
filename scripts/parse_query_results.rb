@@ -152,11 +152,11 @@ def parseFile(path)
                 # Explain Time
                 row << time - startTime
                 # Estimated Cost
-                row << BigDecimal(match[1]).truncate().to_s()
+                row << BigDecimal(match[1]).truncate().to_i()
                 # Startup Cost
-                row << BigDecimal(match[2]).truncate().to_s()
+                row << BigDecimal(match[2]).truncate().to_i()
                 # Estimated Rows
-                row << BigDecimal(match[3]).truncate().to_s()
+                row << BigDecimal(match[3]).truncate().to_i()
 
                 startTime = time
             elsif (match = line.match(/- First Query Response/))
