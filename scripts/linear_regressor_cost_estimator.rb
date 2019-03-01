@@ -16,8 +16,8 @@ pyfrom :'sklearn.linear_model', import: :LinearRegression
 pyfrom :'sklearn.model_selection', import: :train_test_split
 
 FEATURE_COLUMNS = [
-    'Explain Time (ms)', 'Estimated Cost', 'Startup Cost', 'Estimated Rows',
-    'First Query Response (ms)', 'Non-Startup Time', 'Combined Estimate'
+   'Atom Count', 'Explain Time (ms)', 'Estimated Cost', 'Startup Cost', 'Estimated Rows',
+   # 'Estimated Cost', 'Estimated Rows'
 ]
 
 TARGET_COLUMN = 'Total Time (ms)'
@@ -71,8 +71,8 @@ def main(paths)
 
    model, score = fitLinearRegressor(allResults)
 
-   headers = ['Score'] + FEATURE_COLUMNS
-   values = [score] + model.coef_.tolist()
+   headers = ['Score', 'Intercept'] + FEATURE_COLUMNS
+   values = [score, model.intercept_.round(SIGNIFICANT_PLACES)] + model.coef_.tolist()
 
    puts headers.join("\t")
    puts values.map{|val| val.round(SIGNIFICANT_PLACES)}.join("\t")
