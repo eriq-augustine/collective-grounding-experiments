@@ -15,17 +15,15 @@ include PyCall::Import
 pyfrom :'sklearn.linear_model', import: :LinearRegression
 pyfrom :'sklearn.model_selection', import: :train_test_split
 
-FEATURE_COLUMNS = [
-   'Atom Count', 'Explain Time (ms)', 'Estimated Cost', 'Startup Cost', 'Estimated Rows',
-   # 'Estimated Cost', 'Estimated Rows'
-]
+FEATURE_COLUMNS = ['Atom Count', 'Explain Time (ms)', 'Estimated Cost', 'Startup Cost', 'Estimated Rows']
+SHORT_FEATURE_COLUMNS = ['Estimated Cost', 'Estimated Rows']
 
 TARGET_COLUMN = 'Total Time (ms)'
 
 TEST_SIZE = 0.1
 SEED = 4
 
-def fitLinearRegressor(rows)
+def fitLinearRegressor(rows, useIntercept, featureColumns)
    # Drop rows that are incomplete.
    rows.delete_if{|row| row.size() < BASE_HEADERS.size()}
 
@@ -34,7 +32,7 @@ def fitLinearRegressor(rows)
 
    # Only keep our feature columns.
    columnsToRemove = []
-   (Set.new(HEADERS) - Set.new(FEATURE_COLUMNS)).each{|removeHeader|
+   (Set.new(HEADERS) - Set.new(featureColumns)).each{|removeHeader|
       columnsToRemove << HEADERS.index(removeHeader)
    }
    columnsToRemove = columnsToRemove.sort().reverse()
@@ -45,7 +43,7 @@ def fitLinearRegressor(rows)
       }
    }
 
-   model = LinearRegression.new()
+   model = LinearRegression.new(fit_intercept: useIntercept)
 
    xTrain, xTest, yTrain, yTest = train_test_split(rows, labels, test_size: TEST_SIZE, random_state: SEED)
 
@@ -55,23 +53,45 @@ def fitLinearRegressor(rows)
 end
 
 def loadArgs(args)
-   if (args.size < 1 || args.map{|arg| arg.gsub('-', '').downcase()}.include?('help'))
-      puts "USAGE: ruby #{$0} <output file> ..."
+   if (args.size() < 1 || args.map{|arg| arg.gsub('-', '').downcase()}.include?('help'))
+      puts "USAGE: ruby #{$0} [--short] [--use-intercept] <output file> ..."
       exit(1)
    end
 
-   return args
+   useShort = false
+   if (args.size() > 0 && args[0] == '--short')
+      useShort = true
+      args.shift()
+   end
+
+   useIntercept = false 
+   if (args.size() > 0 && args[0] == '--use-intercept')
+      useIntercept = true
+      args.shift()
+   end
+
+   if (args.size() == 0)
+      puts "No output file specified."
+      exit(2)
+   end
+
+   return useShort, useIntercept, args
 end
 
-def main(paths)
+def main(useShortFeatures, useIntercept, paths)
    allResults = []
    paths.each{|path|
       allResults += parseFile(path)
    }
 
-   model, score = fitLinearRegressor(allResults)
+   featureColumns = FEATURE_COLUMNS
+   if (useShortFeatures)
+      featureColumns = SHORT_FEATURE_COLUMNS
+   end
 
-   headers = ['Score', 'Intercept'] + FEATURE_COLUMNS
+   model, score = fitLinearRegressor(allResults, useIntercept, featureColumns)
+
+   headers = ['Score', 'Intercept'] + featureColumns
    values = [score, model.intercept_.round(SIGNIFICANT_PLACES)] + model.coef_.tolist()
 
    puts headers.join("\t")
@@ -79,5 +99,5 @@ def main(paths)
 end
 
 if ($0 == __FILE__)
-    main(loadArgs(ARGV))
+    main(*loadArgs(ARGV))
 end

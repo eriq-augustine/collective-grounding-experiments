@@ -58,9 +58,9 @@ def combineResults(allResults)
          if (values.size() == 0)
             combinedRow[HEADERS.index(stat)] = nil
          elsif (MEAN_COLUMNS.include?(stat))
-            combinedRow[HEADERS.index(stat)] = "#{values.mean()} ± #{values.standard_deviation()}"
+            combinedRow[HEADERS.index(stat)] = "#{values.mean().round(SIGNIFICANT_PLACES)} ± #{values.standard_deviation().round(SIGNIFICANT_PLACES)}"
          elsif (SUM_COLUMNS.include?(stat))
-            combinedRow[HEADERS.index(stat)] = "#{values.sum()}"
+            combinedRow[HEADERS.index(stat)] = "#{values.sum().round(SIGNIFICANT_PLACES)}"
          end
       }
 
