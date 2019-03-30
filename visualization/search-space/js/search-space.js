@@ -1,12 +1,15 @@
 'use strict';
 
-const LEVEL_HEIGHT = 100;
-const NODE_DIAMETER = 20;
+const NODE_SIZE = 125;
+const NODE_MARGIN = 10;
+const LEVEL_HEIGHT = NODE_SIZE + 75;
+const PADDING = 50;
 
 const COLOR_HOT = [255, 0, 0];
 const COLOR_COLD = [0, 0, 255];
 
 const METRICS = ['count', 'cost', 'rows'];
+const DISPLAY_STATS = ['index'].concat(METRICS);
 
 const CUBIC_HEAT = true;
 
@@ -15,9 +18,10 @@ window.searchspace = window.searchspace || {};
 function main() {
     addButtons();
 
-    let height = window.searchspace.data.count * LEVEL_HEIGHT;
-    // TODO(eriq)
-    let width = 1200;
+    let maxWidth = parseMaxWidth();
+
+    let height = window.searchspace.data.count * (LEVEL_HEIGHT + NODE_SIZE);
+    let width = Math.trunc(maxWidth * (NODE_SIZE + NODE_MARGIN));
 
     let tree = d3.layout.tree()
         .size([height, width])
@@ -27,8 +31,10 @@ function main() {
     let dataLinks = tree.links(dataNodes);
 
     let svg = d3.select(".tree-area").append("svg")
+        .attr("width", width + PADDING)
+        .attr("height", height + PADDING)
         .append("g")
-        .attr("transform", "translate(50, 50)")
+        .attr("transform", `translate(${PADDING}, ${PADDING * 2})`)
     ;
 
     let graphicalNodes = svg.selectAll("g.node")
@@ -38,25 +44,32 @@ function main() {
     let displayNodes = graphicalNodes.enter()
         .append("g")
         .attr("class", "node")
-        .attr("transform", function(node) { return "translate(" + node.x + "," + node.y + ")"; })
+        .attr("transform", function(node) { return `translate(${node.x - (NODE_SIZE / 2)}, ${node.y - (NODE_SIZE / 2)})`; })
     ;
 
     METRICS.forEach(function(metric) {
         displayNodes.attr(`data-${metric}`, function(node) { return node[metric]; });
     });
 
-    displayNodes.append("circle")
-        .attr("r", NODE_DIAMETER / 2)
-        .style("fill", "#fff")
+    displayNodes.append("rect")
+        .attr("width", NODE_SIZE)
+        .attr("height", NODE_SIZE)
+        .style("fill", "#ffffff")
     ;
 
-    displayNodes.append("text")
-        .attr("y", function(node) { return node.children ? -NODE_DIAMETER : NODE_DIAMETER; })
-        .attr("dy", ".35em")
-        .attr("text-anchor", "middle")
-        .text(function(node) { return node.name; })
-        .style("fill-opacity", 1)
-    ;
+    let i = 0;
+    DISPLAY_STATS.forEach(function(stat) {
+        let y = Math.trunc((NODE_SIZE / (DISPLAY_STATS.length + 1)) * (i + 1));
+
+        displayNodes.append("text")
+            .attr("y", y)
+            .attr("x", 5)
+            .text(function(node) { return `${stat}: ${node[stat]}`; })
+            .style("fill-opacity", 1)
+        ;
+
+        i++;
+    });
 
     // Declare the links…
     let graphicalLinks = svg.selectAll("path.link")
@@ -85,6 +98,8 @@ function addButtons() {
 }
 
 function parseNodes(tree) {
+    let levels = parseLevels();
+
     let dataNodes = tree.nodes(window.searchspace.data);
 
     window.searchspace.ranges = {};
@@ -95,7 +110,6 @@ function parseNodes(tree) {
     let id = 0;
     dataNodes.forEach(function(node) {
         node.y = node.depth * LEVEL_HEIGHT;
-        node.x *= 1.25;
 
         node.name = node.index;
         node.id = id++;
@@ -111,7 +125,59 @@ function parseNodes(tree) {
         });
     });
 
+    // Extra layout needs to be done for horizontal spacing.
+    dataNodes.sort(function(a, b) {
+        return a.x - b.x;
+    });
+
+    let maxWidth = parseMaxWidth(levels);
+    let width = Math.trunc(maxWidth * (NODE_SIZE + NODE_MARGIN));
+
+    for (let count in levels) {
+        let widthPerNode = width / levels[count];
+
+        let i = 0;
+        dataNodes.forEach(function(dataNode) {
+            if (dataNode.count != count) {
+                return;
+            }
+
+            dataNode.x = Math.trunc(i * widthPerNode + (widthPerNode / 2));
+            i++;
+        });
+    }
+
     return dataNodes;
+}
+
+function parseMaxWidth(levels) {
+    levels = levels || parseLevels();
+
+    let maxWidth = 0;
+    for (let count in levels) {
+        if (levels[count] > maxWidth) {
+            maxWidth = levels[count];
+        }
+    }
+
+    return maxWidth;
+}
+
+function parseLevels() {
+    let levels = {};
+    parseLevelsHelper(levels, window.searchspace.data);
+    return levels;
+}
+
+function parseLevelsHelper(levels, node) {
+    if (!(node.count in levels)) {
+        levels[node.count] = 0;
+    }
+    levels[node.count]++;
+
+    node.children.forEach(function(child) {
+        parseLevelsHelper(levels, child);
+    });
 }
 
 function heatmap(metric) {
@@ -125,7 +191,7 @@ function heatmap(metric) {
         let value = node.dataset[metric];
         let color = getColor(value, min, max);
 
-        node.querySelector('circle').style.fill = color;
+        node.querySelector('rect').style.fill = color;
     });
 }
 

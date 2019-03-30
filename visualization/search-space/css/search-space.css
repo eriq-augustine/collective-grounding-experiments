@@ -7,16 +7,19 @@
 .button-area {
     display: flex;
     flex-direction: row;
-    justify-content: space-evenly;
+    justify-content: flex-start;
+}
+
+.button-area button {
+    padding: 10px;
+    margin: 10px;
 }
 
 .tree-area,
 .tree-area svg {
-    width: 100%;
-    height: 100%;
 }
 
-.node circle {
+.node rect {
     fill: #ffffff;
     stroke: #cccccc;
     stroke-width: 2px;
