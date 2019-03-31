@@ -12,11 +12,9 @@ INDEX_COUNT = 2
 INDEX_COST = 3
 INDEX_ROWS = 4
 
-def dupNode(node)
-    newNode = node.clone()
-    newNode['children'] = []
-    return newNode
-end
+# In the really big spaces, duplicating nodes it very costly.
+# Even serializing to JSON is cosstly if we don't cut duplicate nodes.
+PRUNE_DUPS = true
 
 def makeNode(row)
     return {
@@ -26,7 +24,13 @@ def makeNode(row)
         'rows' => row[INDEX_ROWS],
         'query' => row[INDEX_QUERY],
         'children' => [],
+        '_childrenIndexes' => Set.new(),
     }
+end
+
+# Clean up a node before serialization.
+def cleanNode(node)
+    node.delete('_childrenIndexes')
 end
 
 def tokenize(formula)
@@ -62,25 +66,34 @@ def buildTree(rows)
             tree = levelNodes[0]
             lastNodes = levelNodes
         else
-            # Check which parents each new node can have.
-            # Note that we will make copies to represent nodes that were already cut out in PSL.
-            # (Hence this strange-looking usage of usedNodes.)
-            usedNodes = []
+            usedIndexes = Set.new()
 
             levelNodes.each{|node|
                 tokens = rowTokens[node['index']]
 
                 lastNodes.each{|parent|
+                    if (usedIndexes.include?(node['index']))
+                        break
+                    end
+
+                    if (parent['_childrenIndexes'].include?(node['index']))
+                        next
+                    end
+
                     parentTokens = rowTokens[parent['index']]
                     if (parentTokens.superset?(tokens))
-                        newNode = dupNode(node)
-                        usedNodes << newNode
-                        parent['children'] << newNode
+                        parent['children'] << node
+                        parent['_childrenIndexes'] << node['index']
+                        usedIndexes.add(node['index'])
                     end
                 }
             }
 
-            lastNodes = usedNodes
+            # The parents will not be referenced again,
+            # clean them up before being serialized.
+            lastNodes.each{|node| cleanNode(node)}
+
+            lastNodes = levelNodes
         end
     }
 
