@@ -11,10 +11,9 @@ const COLOR_COLD = [0, 0, 255];
 const METRICS = ['count', 'cost', 'rows', 'estimate'];
 const DISPLAY_STATS = ['rank', 'index'].concat(METRICS);
 
-const CUBIC_HEAT = true;
-
-const DEFAULT_D = 0.018
-const DEFAULT_M = 0.0015
+const DEFAULT_HEAT_ROOT = 3;
+const DEFAULT_D = 0.018;
+const DEFAULT_M = 0.0015;
 
 window.searchspace = window.searchspace || {};
 
@@ -104,6 +103,7 @@ function addButtons() {
     });
 
     [
+        ['Heat Root:', 'input-heat-root', DEFAULT_HEAT_ROOT],
         ['D:', 'input-d', DEFAULT_D],
         ['M:', 'input-m', DEFAULT_M],
     ].forEach(function([labelText, id, defaultValue]) {
@@ -253,10 +253,9 @@ function heatmap(metric) {
 
 function getColor(value, min, max) {
     let weight = (value - min) / (max - min);
+    let heatRoot = parseFloat(document.querySelector('#input-heat-root').value);
 
-    if (CUBIC_HEAT) {
-        weight = Math.pow(weight, 1 / 3);
-    }
+    weight = Math.pow(weight, 1 / heatRoot);
 
     let colorString = '';
 
