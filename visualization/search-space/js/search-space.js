@@ -8,10 +8,13 @@ const PADDING = 50;
 const COLOR_HOT = [255, 0, 0];
 const COLOR_COLD = [0, 0, 255];
 
-const METRICS = ['count', 'cost', 'rows'];
-const DISPLAY_STATS = ['index'].concat(METRICS);
+const METRICS = ['count', 'cost', 'rows', 'estimate'];
+const DISPLAY_STATS = ['rank', 'index'].concat(METRICS);
 
 const CUBIC_HEAT = true;
+
+const DEFAULT_D = 0.018
+const DEFAULT_M = 0.0015
 
 window.searchspace = window.searchspace || {};
 
@@ -30,6 +33,8 @@ function main() {
     let dataNodes = parseNodes(tree);
     let dataLinks = tree.links(dataNodes);
 
+    window.searchspace.dataNodes = dataNodes;
+
     let svg = d3.select(".tree-area").append("svg")
         .attr("width", width + PADDING)
         .attr("height", height + PADDING)
@@ -44,10 +49,11 @@ function main() {
     let displayNodes = graphicalNodes.enter()
         .append("g")
         .attr("class", "node")
+        .attr('data-id', function(node) { return node.id; })
         .attr("transform", function(node) { return `translate(${node.x - (NODE_SIZE / 2)}, ${node.y - (NODE_SIZE / 2)})`; })
     ;
 
-    METRICS.forEach(function(metric) {
+    DISPLAY_STATS.forEach(function(metric) {
         displayNodes.attr(`data-${metric}`, function(node) { return node[metric]; });
     });
 
@@ -64,6 +70,7 @@ function main() {
         displayNodes.append("text")
             .attr("y", y)
             .attr("x", 5)
+            .attr('data-stat', stat)
             .text(function(node) { return `${stat}: ${node[stat]}`; })
             .style("fill-opacity", 1)
         ;
@@ -95,6 +102,21 @@ function addButtons() {
 
         document.querySelector('.button-area').appendChild(button);
     });
+
+    [
+        ['D:', 'input-d', DEFAULT_D],
+        ['M:', 'input-m', DEFAULT_M],
+    ].forEach(function([labelText, id, defaultValue]) {
+        let label = document.createElement('label');
+        label.innerHTML = labelText;
+        document.querySelector('.input-area').appendChild(label);
+
+        let input = document.createElement('input');
+        input.type = 'number';
+        input.id = id;
+        input.value = defaultValue;
+        document.querySelector('.input-area').appendChild(input);
+    });
 }
 
 function parseNodes(tree) {
@@ -113,6 +135,10 @@ function parseNodes(tree) {
 
         node.name = node.index;
         node.id = id++;
+        node.rank = -1;
+
+        // Compute the estimate.
+        node.estimate = computeEstimate(node);
 
         METRICS.forEach(function(metric) {
             if (window.searchspace.ranges[metric][0] == null || node[metric] < window.searchspace.ranges[metric][0]) {
@@ -150,6 +176,13 @@ function parseNodes(tree) {
     return dataNodes;
 }
 
+function computeEstimate(node) {
+    let d = parseFloat(document.querySelector('#input-d').value);
+    let m = parseFloat(document.querySelector('#input-m').value);
+
+    return Math.trunc(node.cost * d + node.rows * node.count * m);
+}
+
 function parseMaxWidth(levels) {
     levels = levels || parseLevels();
 
@@ -181,17 +214,40 @@ function parseLevelsHelper(levels, node) {
 }
 
 function heatmap(metric) {
-    if (!(metric in window.searchspace.ranges)) {
+    if (!METRICS.includes(metric)) {
         return;
     }
 
-    let [min, max] = window.searchspace.ranges[metric];
+    let min = null;
+    let max = null;
+
+    let ranking = [];
+    window.searchspace.dataNodes.forEach(function(node) {
+        let value = node[metric];
+
+        if (min == null || value < min) {
+            min = value;
+        }
+
+        if (max == null || value > max) {
+            max = value;
+        }
+
+        ranking.push([value, node.id]);
+    });
+    ranking.sort(function(a, b) { return a[0] - b[0]; });
+
+    let rankingMap = {};
+    for (let i = 0; i < ranking.length; i++) {
+        rankingMap[ranking[i][1]] = i;
+    }
 
     document.querySelectorAll('.node').forEach(function(node) {
         let value = node.dataset[metric];
         let color = getColor(value, min, max);
 
         node.querySelector('rect').style.fill = color;
+        node.querySelector(`text[data-stat="rank"]`).innerHTML = `rank: ${rankingMap[parseInt(node.dataset.id)]}`;
     });
 }
 

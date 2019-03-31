@@ -10,7 +10,8 @@
     justify-content: flex-start;
 }
 
-.button-area button {
+.button-area button,
+.input-area input {
     padding: 10px;
     margin: 10px;
 }
