@@ -4,8 +4,8 @@ __pycache__/
 
 *.jar
 *-learned.psl
-out.txt
-out.err
+out*.txt
+out*.err
 inferred-predicates/
 
 /psl-examples/

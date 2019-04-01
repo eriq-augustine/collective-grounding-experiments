@@ -12,10 +12,6 @@ INDEX_COUNT = 2
 INDEX_COST = 3
 INDEX_ROWS = 4
 
-# In the really big spaces, duplicating nodes it very costly.
-# Even serializing to JSON is cosstly if we don't cut duplicate nodes.
-PRUNE_DUPS = true
-
 def makeNode(row)
     return {
         'index' => row[INDEX_INDEX],
@@ -41,7 +37,7 @@ def tokenize(formula)
     return Set.new(formula.split(' & '))
 end
 
-def buildTree(rows)
+def buildTree(rows, pruneDups)
     # Each tree level we go down, there will be one less atom.
     # The tokens of a child will be a substring of the tokens of the parent.
     # Allow duplicates.
@@ -72,7 +68,7 @@ def buildTree(rows)
                 tokens = rowTokens[node['index']]
 
                 lastNodes.each{|parent|
-                    if (usedIndexes.include?(node['index']))
+                    if (pruneDups && usedIndexes.include?(node['index']))
                         break
                     end
 
@@ -150,20 +146,34 @@ def parseFile(path)
 end
 
 def loadArgs(args)
-   if (args.size != 1 || args.map{|arg| arg.gsub('-', '').downcase()}.include?('help'))
-      puts "USAGE: ruby #{$0} <output file>"
+   if (args.size < 1 || args.size > 2 || args.map{|arg| arg.gsub('-', '').downcase()}.include?('help'))
+      puts "USAGE: ruby #{$0} <output file> [--prune-dups]"
       exit(1)
    end
 
-   return args.shift()
+   path = args.shift()
+
+   pruneDups = false
+   if (args.size() > 0)
+      flag = args.shift()
+
+      if (flag != '--prune-dups')
+         puts "Bad option: '#{flag}'."
+         exit(2)
+      end
+
+      pruneDups = true
+   end
+
+   return path, pruneDups
 end
 
-def main(path)
+def main(path, pruneDups)
     headers, rows = parseFile(path)
-    tree = buildTree(rows)
+    tree = buildTree(rows, pruneDups)
     puts JSON.pretty_generate(tree, {:indent => '    '})
 end
 
 if ($0 == __FILE__)
-    main(loadArgs(ARGV))
+    main(*loadArgs(ARGV))
 end
