@@ -1,0 +1,119 @@
+predicates:
+   # General
+   Person/1: closed
+   BelongsToFamily/2: closed
+   BelongsToParticipant/2: closed
+
+   # Similarity
+   FirstNameJaroSim/2: closed
+   MaidenNameJaroSim/2: closed
+   LastNameJaroSim/2: closed
+
+   # Used for the transitive relational rules
+   MaxJaroLevFirstName/2: closed
+
+   FirstNameLevSim/2: closed
+   MaidenNameLevSim/2: closed
+   LastNameLevSim/2: closed
+
+   SimilarAge/2: closed
+   SameGender/2: closed
+   SameLivingStatus/2: closed
+
+   # Relationship similarities equivalent to logistic regression ones
+
+   # First degree individual
+   MotherSim/2: closed
+   FatherSim/2: closed
+   BrothersSim/2: closed
+   SistersSim/2: closed
+   DaughtersSim/2: closed
+   SonsSim/2: closed
+   SpouseSim/2: closed
+
+   # Second degree individual
+   GrandMothersSim/2: closed
+   GrandFathersSim/2: closed
+   GrandDaughtersSim/2: closed
+   GrandSonsSim/2: closed
+   UnclesSim/2: closed
+   AuntsSim/2: closed
+   NiecesSim/2: closed
+   NephewsSim/2: closed
+
+   # 1st degree familial relations - these predicates are for the transitivity like rules
+   HasMother/2: closed
+   HasFather/2: closed
+   HasBrother/2: closed
+   HasSister/2: closed
+   HasDaughter/2: closed
+   HasSon/2: closed
+   HasSpouse/2: closed
+
+   # 2nd degree familial relations
+   HasGrandMother/2: closed
+   HasGrandFather/2: closed
+   HasGrandDaughter/2: closed
+   HasGrandSon/2: closed
+   HasUncle/2: closed
+   HasAunt/2: closed
+   HasNiece/2: closed
+   HasNephew/2: closed
+
+   SamePersonBlock/2: closed
+
+   # Target
+   SamePerson/2: open
+
+observations:
+   Person: ../data/nih_fold_01/common/persons_obs.txt
+   BelongsToFamily: ../data/nih_fold_01/common/belongsToFamily_obs.txt
+   BelongsToParticipant: ../data/nih_fold_01/common/belongsToParticipant_obs.txt
+   FirstNameJaroSim: ../data/nih_fold_01/common/firstNameJaroSims_obs.txt
+   MaidenNameJaroSim: ../data/nih_fold_01/common/maidenNameJaroSims_obs.txt
+   LastNameJaroSim: ../data/nih_fold_01/common/lastNameJaroSims_obs.txt
+   MaxJaroLevFirstName: ../data/nih_fold_01/common/maxJaroLevFirstName_obs.txt
+   FirstNameLevSim: ../data/nih_fold_01/common/firstNameLevSims_obs.txt
+   MaidenNameLevSim: ../data/nih_fold_01/common/maidenNameLevSims_obs.txt
+   LastNameLevSim: ../data/nih_fold_01/common/lastNameLevSims_obs.txt
+   SimilarAge: ../data/nih_fold_01/common/contRatioAges_obs.txt
+   SameGender: ../data/nih_fold_01/common/genders_obs.txt
+   SameLivingStatus: ../data/nih_fold_01/common/livingstatus_obs.txt
+   MotherSim: ../data/nih_fold_01/common/motherSim_obs.txt
+   FatherSim: ../data/nih_fold_01/common/fatherSim_obs.txt
+   BrothersSim: ../data/nih_fold_01/common/brothersSim_obs.txt
+   SistersSim: ../data/nih_fold_01/common/sistersSim_obs.txt
+   DaughtersSim: ../data/nih_fold_01/common/daughtersSim_obs.txt
+   SonsSim: ../data/nih_fold_01/common/sonsSim_obs.txt
+   SpouseSim: ../data/nih_fold_01/common/spouseSim_obs.txt
+   GrandMothersSim: ../data/nih_fold_01/common/grandMothersSim_obs.txt
+   GrandFathersSim: ../data/nih_fold_01/common/grandFathersSim_obs.txt
+   GrandDaughtersSim: ../data/nih_fold_01/common/grandDaughtersSim_obs.txt
+   GrandSonsSim: ../data/nih_fold_01/common/grandSonsSim_obs.txt
+   UnclesSim: ../data/nih_fold_01/common/unclesSim_obs.txt
+   AuntsSim: ../data/nih_fold_01/common/auntsSim_obs.txt
+   NiecesSim: ../data/nih_fold_01/common/niecesSim_obs.txt
+   NephewsSim: ../data/nih_fold_01/common/nephewsSim_obs.txt
+   HasMother: ../data/nih_fold_01/common/hasMother_obs.txt
+   HasFather: ../data/nih_fold_01/common/hasFather_obs.txt
+   HasBrother: ../data/nih_fold_01/common/hasBrother_obs.txt
+   HasSister: ../data/nih_fold_01/common/hasSister_obs.txt
+   HasDaughter: ../data/nih_fold_01/common/hasDaughter_obs.txt
+   HasSon: ../data/nih_fold_01/common/hasSon_obs.txt
+   HasSpouse: ../data/nih_fold_01/common/hasSpouse_obs.txt
+   HasGrandMother: ../data/nih_fold_01/common/hasGrandMother_obs.txt
+   HasGrandFather: ../data/nih_fold_01/common/hasGrandFather_obs.txt
+   HasGrandDaughter: ../data/nih_fold_01/common/hasGrandDaughter_obs.txt
+   HasGrandSon: ../data/nih_fold_01/common/hasGrandSon_obs.txt
+   HasUncle: ../data/nih_fold_01/common/hasUncle_obs.txt
+   HasAunt: ../data/nih_fold_01/common/hasAunt_obs.txt
+   HasNiece: ../data/nih_fold_01/common/hasNiece_obs.txt
+   HasNephew: ../data/nih_fold_01/common/hasNephew_obs.txt
+
+   SamePersonBlock: ../data/nih_fold_01/learn/samePersonBlock_targets.txt
+
+targets:
+   SamePerson: ../data/nih_fold_01/learn/samePersonBlock_targets.txt
+
+truth:
+   SamePerson: ../data/nih_fold_01/learn/samePerson_truth.txt

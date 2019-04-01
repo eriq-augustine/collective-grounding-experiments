@@ -2,7 +2,12 @@
 .DS_Store
 __pycache__/
 
+*.jar
+*-learned.psl
+out.txt
+out.err
+inferred-predicates/
+
 /psl-examples/
 /results/
 /old/
-/special-data/
