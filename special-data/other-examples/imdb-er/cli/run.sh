@@ -9,8 +9,8 @@ readonly JAR_PATH="./psl-cli-${PSL_VERSION}.jar"
 readonly FETCH_DATA_SCRIPT='../data/fetchData.sh'
 readonly BASE_NAME='imdb-er'
 
-readonly ADDITIONAL_JAVA_OPTIONS=''
-# readonly ADDITIONAL_JAVA_OPTIONS='-Xmx350G -Xms350G'
+# readonly ADDITIONAL_JAVA_OPTIONS=''
+readonly ADDITIONAL_JAVA_OPTIONS='-Xmx350G -Xms350G'
 readonly ADDITIONAL_PSL_OPTIONS='--int-ids '
 readonly ADDITIONAL_EVAL_OPTIONS='--infer'
 
