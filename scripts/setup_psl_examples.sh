@@ -93,8 +93,8 @@ function main() {
    trap exit SIGINT
 
    fetch_psl_examples
-   standard_fixes
    special_fixes
+   standard_fixes
 
    exit 0
 }

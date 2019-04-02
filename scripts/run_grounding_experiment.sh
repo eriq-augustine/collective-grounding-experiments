@@ -5,11 +5,19 @@ readonly BASE_OUT_DIR="${THIS_DIR}/../results/individual-query"
 
 readonly AGGREGATE_OUT_FILENAME='all.out'
 readonly CLEAR_CACHE_SCRIPT=$(realpath "${THIS_DIR}/clear_cache.sh")
+readonly BSOE_CLEAR_CACHE_SCRIPT=$(realpath "${THIS_DIR}/bsoe_clear_cache.sh")
 readonly PARSE_CONFIGS_SCRIPT=$(realpath "${THIS_DIR}/parse_results_for_runs.rb")
-readonly TIMEOUT_DURATION='3m'
+readonly TIMEOUT_DURATION='15m'
+
+# A directory that only exists on BSOE servers.
+readonly BSOE_DIR='/soe'
 
 function clearPostgresCache() {
-    sudo "${CLEAR_CACHE_SCRIPT}"
+    if [[ -d "${BSOE_DIR}" ]]; then
+        "${BSOE_CLEAR_CACHE_SCRIPT}"
+    else
+        sudo "${CLEAR_CACHE_SCRIPT}"
+    fi
 }
 
 function run() {
