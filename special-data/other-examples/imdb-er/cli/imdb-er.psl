@@ -12,10 +12,10 @@
 
 // If they are not in the same movie, then they can be the same entity
 // Maybe lower the weight?
-//0.3: CANDSAME(R1, R2) & SIM(ID1, ID2) & INREF(ID1, R1) & INREF(ID2, R2) & INMOVIE(R1, M) & ~INMOVIE(R2, M) -> SAME(R1, R2)
+// 0.3: CANDSAME(R1, R2) & SIM(ID1, ID2) & INREF(ID1, R1) & INREF(ID2, R2) & INMOVIE(R1, M) & ~INMOVIE(R2, M) -> SAME(R1, R2)
 
 // Relation matching where we appear in the same movies with same costars
-0.3: CANDSAME(R1, R2) & SIM(ID1, ID2) & INREF(ID1, R1) & INREF(ID2, R2) & INMOVIE(R1, M1) & INMOVIE(R2, M2) & INMOVIE(R3, M1) & INMOVIE(R3, M2) & (M1 != M2) & (R1 != R3) & (R2 != R3) -> SAME(R1, R2)
+// 0.3: CANDSAME(R1, R2) & SIM(ID1, ID2) & INREF(ID1, R1) & INREF(ID2, R2) & INMOVIE(R1, M1) & INMOVIE(R2, M2) & INMOVIE(R3, M1) & INMOVIE(R3, M2) & (M1 != M2) & (R1 != R3) & (R2 != R3) -> SAME(R1, R2)
 
 // Exclusivity
 // If an actor from movie matches an actor in another movie. Then they cannot match any other actor from the second movie.
