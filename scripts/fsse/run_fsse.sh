@@ -1,7 +1,9 @@
 #!/bin/bash
 
+# Run the full search space experiemnts.
+
 readonly THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-readonly BASE_OUT_DIR="${THIS_DIR}/../results/individual-query"
+readonly BASE_OUT_DIR="${THIS_DIR}/../../results/individual-query"
 
 readonly AGGREGATE_OUT_FILENAME='all.out'
 readonly CLEAR_CACHE_SCRIPT=$(realpath "${THIS_DIR}/clear_cache.sh")
