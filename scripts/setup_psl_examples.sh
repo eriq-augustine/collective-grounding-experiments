@@ -14,7 +14,7 @@ readonly FAMILIAL_ER_DIR="${SPECIAL_DATA_DIR}/other-examples/familial-er"
 readonly IMDB_ER_DIR="${SPECIAL_DATA_DIR}/other-examples/imdb-er"
 
 readonly POSTGRES_DB='psl'
-readonly BASE_PSL_OPTION="--postgres ${POSTGRES_DB} -D log4j.threshold=TRACE -D persistedatommanager.throwaccessexception=false -D grounding.serial=true"
+readonly BASE_PSL_OPTION="--postgres ${POSTGRES_DB} -D log4j.threshold=TRACE -D persistedatommanager.throwaccessexception=false"
 
 # Examples that cannot use int ids.
 readonly STRING_IDS='entity-resolution simple-acquaintances user-modeling'
