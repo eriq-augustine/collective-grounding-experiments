@@ -7,6 +7,10 @@ fi
 
 echo "Clearing Postgres-related caches."
 
+# Do an extra restart so we can guarentee all connections are closed.
+systemctl stop postgresql.service
+systemctl start postgresql.service
+
 dropdb -U postgres psl
 systemctl stop postgresql.service
 
