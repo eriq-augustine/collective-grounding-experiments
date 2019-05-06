@@ -180,7 +180,6 @@ def parseFile(path)
             elsif (match = line.match(/- Got (\d+) results from query/))
                 # Actual Rows
                 row << match[1].to_i()
-                
                 startTime = time
             elsif (match = line.match(/- Generated (\d+) ground rules with query:/))
                 # Instantiation Time
