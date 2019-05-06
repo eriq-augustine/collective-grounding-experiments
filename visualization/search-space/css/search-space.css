@@ -27,11 +27,12 @@
 }
 
 .node text {
-    font: 12px sans-serif;
+    font: 13px sans-serif;
+    font-weight: bold;
 }
 
 .link {
     fill: none;
     stroke: #cccccc;
-    stroke-width: 2px;
+    stroke-width: 10px;
 }
