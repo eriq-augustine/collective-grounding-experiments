@@ -72,7 +72,8 @@ function run_search_methods() {
         for searchMethod in ${SEARCH_METHODS}; do
             local outDir="${baseOutDir}/${budget}/${searchMethod}"
 
-            local options='-D grounding.rewritequeries=true -D grounding.serial=true -D grounding.eagerinstantiation=false'
+            local options='-D grounding.experiment=true -D grounding.rewritequeries=true -D grounding.serial=true -D grounding.eagerinstantiation=false'
+            options="${options} -D queryrewriter.searchbudget=${budget}"
             options="${options} -D queryrewriter.searchtype=org.linqs.psl.database.rdbms.QueryRewriter\$${searchMethod}"
 
             run "${cliDir}" "${outDir}" "${options}"
@@ -97,7 +98,7 @@ function run_hyperparam_sensitivity() {
             local optimisticM=0$(echo "${m} - ${M_INCREMENT}" | bc)
             local pessimisticM=0$(echo "${m} + ${M_INCREMENT}" | bc)
 
-            local options='-D grounding.rewritequeries=true -D grounding.serial=true -D grounding.eagerinstantiation=false'
+            local options='-D grounding.experiment=true -D grounding.rewritequeries=true -D grounding.serial=true -D grounding.eagerinstantiation=false'
             options="${options} -D queryrewriter.optimisticcost=${optimisticD}"
             options="${options} -D queryrewriter.pessimisticcost=${pessimisticD}"
             options="${options} -D queryrewriter.optimisticrow=${optimisticM}"
@@ -120,17 +121,17 @@ function run_example() {
 
     # Run base, without any rewrites.
     outDir="${baseOutDir}/base"
-    options='-D grounding.rewritequeries=false -D grounding.serial=true -D grounding.eagerinstantiation=false'
+    options='-D grounding.experiment=true -D grounding.rewritequeries=false -D grounding.serial=true -D grounding.eagerinstantiation=false'
     run "${cliDir}" "${outDir}" "${options}"
 
     # Run rewrites, but no sharing.
     outDir="${baseOutDir}/rewrite"
-    options='-D grounding.rewritequeries=true -D grounding.serial=true -D grounding.eagerinstantiation=false'
+    options='-D grounding.experiment=true -D grounding.rewritequeries=true -D grounding.serial=true -D grounding.eagerinstantiation=false -D queryrewriter.searchbudget=10'
     run "${cliDir}" "${outDir}" "${options}"
 
     # Run all optimizations.
     outDir="${baseOutDir}/full"
-    options='-D grounding.rewritequeries=true -D grounding.serial=false -D grounding.eagerinstantiation=true'
+    options='-D grounding.experiment=true -D grounding.rewritequeries=true -D grounding.serial=false -D grounding.eagerinstantiation=true -D queryrewriter.searchbudget=10'
     run "${cliDir}" "${outDir}" "${options}"
 
     outDir="${baseOutDir}/search-methods"
