@@ -15,10 +15,10 @@ def suffix(a, b)
             break
         end
 
-        commonLength = i
+        commonLength += 1
     end
 
-    return a[(a.size() - i)...]
+    return a[(a.size() - commonLength)...]
 end
 
 def prefix(a, b)
@@ -32,10 +32,10 @@ def prefix(a, b)
             break
         end
 
-        commonLength = i
+        commonLength += 1
     end
 
-    return a[0...i]
+    return a[0...commonLength]
 end
 
 # Take the strings and stip any common prefix or suffix.
@@ -53,7 +53,7 @@ def computeIds(strings)
     }
 
     return strings.map{|string|
-        string.sub(/^#{commonPrefix}/, '').sub(/#{commonSuffix}$/, '')
+        string.sub(/#{commonSuffix}$/, '').sub(/^#{commonPrefix}/, '')
     }
 end
 
