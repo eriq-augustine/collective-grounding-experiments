@@ -79,7 +79,7 @@ def parseFile(path)
             if (line.match(/- Grounding out model/))
                 startTime = time
             elsif (line.match(/- Grounding \d+ rule\(s\) with query:/))
-                planninTime = time - startTime
+                planningTime = time - startTime
                 startTime = time
             elsif (line.match(/- Generated \d+ ground rules with query:/))
                 groundingTime += time - startTime
