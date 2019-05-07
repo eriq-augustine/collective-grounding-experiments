@@ -80,7 +80,7 @@ def parseFile(path)
                 startTime = time
             elsif (line.match(/- Generated \d+ ground rules with query:/))
                 groundingTime += time - startTime
-            elsif (line.match(/- Initializing objective terms for \d+ ground rules/))
+            elsif (line.match(/(Initializing objective terms for \d+ ground rules)|(Skipping term generation for grounding experiments)/))
                 # Grounding phase complete.
                 row << planningTime
                 row << queryTime
