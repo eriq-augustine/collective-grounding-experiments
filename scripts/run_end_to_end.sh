@@ -14,10 +14,12 @@ readonly BSOE_CLEAR_CACHE_SCRIPT=$(realpath "${THIS_DIR}/bsoe_clear_cache.sh")
 # A directory that only exists on BSOE servers.
 readonly BSOE_DIR='/soe'
 
+readonly NUM_RUNS=10
+
 readonly SEARCH_METHODS='DFSRewriteFringe BFSRewriteFringe UCSRewriteFringe BoundedRewriteFringe'
-readonly MIN_BUDGET='10'
-readonly MAX_BUDGET='100'
-readonly BUDGET_INCREMENT='10'
+readonly MIN_BUDGET='5'
+readonly MAX_BUDGET='40'
+readonly BUDGET_INCREMENT='5'
 
 # The percentage difference between normal and optimism/pseeimism for D and M.
 readonly OPTIMISM_GAP='0.10'
@@ -113,7 +115,6 @@ function run_example() {
     local exampleDir=$1
 
     local exampleName=`basename "${exampleDir}"`
-    local baseOutDir="${BASE_OUT_DIR}/${exampleName}"
     local cliDir="$exampleDir/cli"
 
     echo "Running example: ${exampleName}."
@@ -121,32 +122,35 @@ function run_example() {
     local outDir=''
     local options=''
 
-    # Run base, without any rewrites.
-    echo "    Running base."
-    outDir="${baseOutDir}/base"
-    options='-D grounding.experiment.skipinference=true -D grounding.rewritequeries=false -D grounding.serial=true -D grounding.eagerinstantiation=false'
-    run "${cliDir}" "${outDir}" "${options}"
+    for i in `seq -w 1 ${NUM_RUNS}`; do
+        local baseOutDir="${BASE_OUT_DIR}/${i}/${exampleName}"
 
-    # Run rewrites, but no sharing.
-    echo "    Running rewrite."
-    outDir="${baseOutDir}/rewrite"
-    options='-D grounding.experiment.skipinference=true -D grounding.rewritequeries=true -D grounding.serial=true -D grounding.eagerinstantiation=false -D queryrewriter.searchbudget=10'
-    run "${cliDir}" "${outDir}" "${options}"
+        # Run base, without any rewrites.
+        echo "    Running base."
+        outDir="${baseOutDir}/base"
+        options='-D grounding.experiment.skipinference=true -D grounding.rewritequeries=false -D grounding.serial=true -D grounding.eagerinstantiation=false'
+        run "${cliDir}" "${outDir}" "${options}"
 
-    # Run all optimizations.
-    echo "    Running full."
-    outDir="${baseOutDir}/full"
-    options='-D grounding.experiment.skipinference=true -D grounding.rewritequeries=true -D grounding.serial=false -D grounding.eagerinstantiation=true -D queryrewriter.searchbudget=10'
-    run "${cliDir}" "${outDir}" "${options}"
+        # Run rewrites, but no sharing.
+        echo "    Running rewrite."
+        outDir="${baseOutDir}/rewrite"
+        options='-D grounding.experiment.skipinference=true -D grounding.rewritequeries=true -D grounding.serial=true -D grounding.eagerinstantiation=false -D queryrewriter.searchbudget=10'
+        run "${cliDir}" "${outDir}" "${options}"
 
-    echo "    Running search methods."
-    outDir="${baseOutDir}/search-methods"
-    run_search_methods "${cliDir}" "${outDir}"
+        # Run all optimizations.
+        echo "    Running full."
+        outDir="${baseOutDir}/full"
+        options='-D grounding.experiment.skipinference=true -D grounding.rewritequeries=true -D grounding.serial=false -D grounding.eagerinstantiation=true -D queryrewriter.searchbudget=10'
+        run "${cliDir}" "${outDir}" "${options}"
 
-    echo "    Running hyperparam sensitivity."
-    outDir="${baseOutDir}/hyperparam-sensitivity"
-    # TEST
-    # run_hyperparam_sensitivity "${cliDir}" "${outDir}"
+        echo "    Running search methods."
+        outDir="${baseOutDir}/search-methods"
+        run_search_methods "${cliDir}" "${outDir}"
+
+        echo "    Running hyperparam sensitivity."
+        outDir="${baseOutDir}/hyperparam-sensitivity"
+        # run_hyperparam_sensitivity "${cliDir}" "${outDir}"
+    done
 }
 
 function main() {
