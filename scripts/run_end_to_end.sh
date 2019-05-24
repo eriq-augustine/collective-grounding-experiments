@@ -17,9 +17,9 @@ readonly BSOE_DIR='/soe'
 readonly NUM_RUNS=10
 
 readonly SEARCH_METHODS='DFSRewriteFringe BFSRewriteFringe UCSRewriteFringe BoundedRewriteFringe'
-readonly MIN_BUDGET='5'
-readonly MAX_BUDGET='40'
-readonly BUDGET_INCREMENT='5'
+readonly MIN_BUDGET='2'
+readonly MAX_BUDGET='20'
+readonly BUDGET_INCREMENT='2'
 
 # The percentage difference between normal and optimism/pseeimism for D and M.
 readonly OPTIMISM_GAP='0.10'
