@@ -1,15 +1,14 @@
 #!/bin/bash
 
-# Run the full search space experiemnts.
+# For each rule, run all rewrites and gather performance stats.
 
 readonly THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 readonly BASE_OUT_DIR="${THIS_DIR}/../../results/individual-query"
 
 readonly AGGREGATE_OUT_FILENAME='all.out'
-readonly CLEAR_CACHE_SCRIPT=$(realpath "${THIS_DIR}/clear_cache.sh")
-readonly BSOE_CLEAR_CACHE_SCRIPT=$(realpath "${THIS_DIR}/bsoe_clear_cache.sh")
-readonly PARSE_CONFIGS_SCRIPT=$(realpath "${THIS_DIR}/parse_results_for_runs.rb")
-readonly TIMEOUT_DURATION='15m'
+readonly CLEAR_CACHE_SCRIPT=$(realpath "${THIS_DIR}/../clear_cache.sh")
+readonly BSOE_CLEAR_CACHE_SCRIPT=$(realpath "${THIS_DIR}/../bsoe_clear_cache.sh")
+readonly TIMEOUT_DURATION='30m'
 
 # A directory that only exists on BSOE servers.
 readonly BSOE_DIR='/soe'
@@ -52,13 +51,13 @@ function run() {
 function fetchQueryCount() {
     local path=$1
 
-    echo $(grep "org.linqs.psl.application.util.Grounding  - Found " "${path}" | sed 's/.*Found \([0-9]\+\) candidate queries\.$/\1/')
+    echo $(grep "org.linqs.psl.grounding.SingleRuleExperiment  - Found " "${path}" | sed 's/.*Found \([0-9]\+\) candidate queries\.$/\1/')
 }
 
 function fetchRuleCount() {
     local path=$1
 
-    echo $(grep "Grounding experiment total available rules:" "${path}" | sed 's/.*rules: \([0-9]\+\)$/\1/')
+    echo $(grep "Single rule experiment total available rules:" "${path}" | sed 's/.*rules: \([0-9]\+\)$/\1/')
 }
 
 function run_single_rule() {
@@ -117,23 +116,6 @@ function run_example() {
 
     # Append all output to a single file for more convenient parsing.
     cat ${baseOutDir}/*/${AGGREGATE_OUT_FILENAME} > "${aggregateOutPath}"
-
-    # Run some select configs.
-
-    local configId=''
-    for config in $("${PARSE_CONFIGS_SCRIPT}" "${aggregateOutPath}"); do
-        if [[ $configId == '' ]]; then
-            configId=$config
-            continue
-        fi
-
-        echo "Running select config: ${configId} (${config})."
-
-        local outDir="${baseOutDir}/full_run_${configId}"
-        run "${cliDir}" "${outDir}" "${config}"
-
-        configId=''
-    done
 }
 
 function main() {
