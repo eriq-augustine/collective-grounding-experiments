@@ -1,17 +1,15 @@
 #!/bin/bash
 
+# Fetch all the PSL examples and modify the CLI configuration for these experiments.
+# Note that you can change the version of PSL used with the PSL_VERSION option here.
+
 readonly BASE_DIR=$(realpath "$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"/..)
-readonly BASE_OUT_DIR="${BASE_DIR}/results"
 
 readonly PSL_EXAMPLES_DIR="${BASE_DIR}/psl-examples"
 readonly PSL_EXAMPLES_REPO='https://github.com/linqs/psl-examples.git'
 readonly PSL_EXAMPLES_BRANCH='develop'
 
-readonly SPECIAL_DATA_DIR="${BASE_DIR}/special-data"
-readonly FRIENDSHIP_PAIRWISE_DIR="${SPECIAL_DATA_DIR}/other-examples/friendship-pairwise"
-readonly AUGMENTED_FRIENDSHIP_DIR="${SPECIAL_DATA_DIR}/augmented-data/friendship"
-readonly FAMILIAL_ER_DIR="${SPECIAL_DATA_DIR}/other-examples/familial-er"
-readonly IMDB_ER_DIR="${SPECIAL_DATA_DIR}/other-examples/imdb-er"
+readonly PSL_VERSION='2.3.0-SNAPSHOT'
 
 readonly POSTGRES_DB='psl'
 readonly BASE_PSL_OPTION="--postgres ${POSTGRES_DB} -D log4j.threshold=TRACE -D persistedatommanager.throwaccessexception=false"
@@ -19,14 +17,11 @@ readonly BASE_PSL_OPTION="--postgres ${POSTGRES_DB} -D log4j.threshold=TRACE -D 
 # Examples that cannot use int ids.
 readonly STRING_IDS='entity-resolution simple-acquaintances user-modeling'
 
-readonly NUM_RUNS=20
-
-readonly STDOUT_FILE='out.txt'
-readonly STDERR_FILE='out.err'
-
 readonly ER_DATA_SZIE='large'
 
-readonly MEM_GB='25'
+readonly AVAILABLE_MEM_KB=$(cat /proc/meminfo | grep 'MemTotal' | sed 's/^[^0-9]\+\([0-9]\+\)[^0-9]\+$/\1/')
+# Floor by multiples of 5 and then reserve an additional 5 GB.
+readonly JAVA_MEM_GB=$((${AVAILABLE_MEM_KB} / 1024 / 1024 / 5 * 5 - 5))
 
 function fetch_psl_examples() {
    if [ -e ${PSL_EXAMPLES_DIR} ]; then
@@ -45,20 +40,11 @@ function fetch_psl_examples() {
 function special_fixes() {
    # Change the size of the ER example to the max size.
    sed -i "s/^readonly SIZE='.*'$/readonly SIZE='${ER_DATA_SZIE}'/" "${PSL_EXAMPLES_DIR}/entity-resolution/data/fetchData.sh"
-
-   # Replace the data in friendship
-   rm -rf "${PSL_EXAMPLES_DIR}/friendship/data/friendship"
-   cp -r "${AUGMENTED_FRIENDSHIP_DIR}" "${PSL_EXAMPLES_DIR}/friendship/data/friendship"
-
-   # Copy in other examples
-   cp -r "${FRIENDSHIP_PAIRWISE_DIR}" "${PSL_EXAMPLES_DIR}/"
-   cp -r "${FAMILIAL_ER_DIR}" "${PSL_EXAMPLES_DIR}/"
-   cp -r "${IMDB_ER_DIR}" "${PSL_EXAMPLES_DIR}/"
 }
 
 # Common to all examples.
 function standard_fixes() {
-    for exampleDir in `find ${PSL_EXAMPLES_DIR} -maxdepth 1 -mindepth 1 -type d -not -name '.git'`; do
+    for exampleDir in `find ${PSL_EXAMPLES_DIR} -maxdepth 1 -mindepth 1 -type d -not -name '.*'`; do
         local baseName=`basename ${exampleDir}`
         local options=''
 
@@ -74,7 +60,10 @@ function standard_fixes() {
             cp "${baseName}.psl" "${baseName}-learned.psl"
 
             # Increase memory allocation.
-            sed -i "s/java -jar/java -Xmx${MEM_GB}G -Xms${MEM_GB}G -jar/" run.sh
+            sed -i "s/java -jar/java -Xmx${JAVA_MEM_GB}G -Xms${JAVA_MEM_GB}G -jar/" run.sh
+
+            # Set the PSL version.
+            sed -i "s/^readonly PSL_VERSION='.*'$/readonly PSL_VERSION='${PSL_VERSION}'/" run.sh
 
             # Disable weight learning.
             sed -i 's/^\(\s\+\)runWeightLearning/\1# runWeightLearning/' run.sh
@@ -82,7 +71,7 @@ function standard_fixes() {
             # Add in the additional options.
             sed -i "s/^readonly ADDITIONAL_PSL_OPTIONS='.*'$/readonly ADDITIONAL_PSL_OPTIONS='${BASE_PSL_OPTION} ${options}'/" run.sh
 
-            # Disable evaluation, we only really want grounding.
+            # Disable evaluation, we are only looking for objective values.
             sed -i "s/^readonly ADDITIONAL_EVAL_OPTIONS='.*'$/readonly ADDITIONAL_EVAL_OPTIONS='--infer'/" run.sh
         popd > /dev/null
 
