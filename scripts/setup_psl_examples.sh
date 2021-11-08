@@ -8,7 +8,7 @@
 # This script has been modified for these experiments from the base psl-examples script.
 
 readonly POSTGRES_DB='psl'
-readonly BASE_PSL_OPTION="--postgres ${POSTGRES_DB} -D runtimestats.collect=true -D log4j.threshold=TRACE -D persistedatommanager.throwaccessexception=false"
+readonly BASE_PSL_OPTION="--postgres ${POSTGRES_DB} -D runtimestats.collect=true -D log4j.threshold=TRACE"
 
 # Basic configuration options.
 readonly PSL_VERSION='2.3.0-SNAPSHOT'
@@ -23,7 +23,7 @@ readonly AVAILABLE_MEM_KB=$(cat /proc/meminfo | grep 'MemTotal' | sed 's/^[^0-9]
 # Floor by multiples of 5 and then reserve an additional 5 GB.
 readonly JAVA_MEM_GB=$((${AVAILABLE_MEM_KB} / 1024 / 1024 / 5 * 5 - 5))
 
-readonly ER_DATA_SZIE='large'
+readonly ER_DATA_FILE='entity-resolution-large.zip'
 
 function fetch_psl_examples() {
    if [ -e ${PSL_EXAMPLES_DIR} ]; then
@@ -41,7 +41,7 @@ function fetch_psl_examples() {
 # Special fixes for select examples.
 function special_fixes() {
    # Change the size of the ER example to the max size.
-   sed -i "s/^readonly SIZE='.*'$/readonly SIZE='${ER_DATA_SZIE}'/" "${PSL_EXAMPLES_DIR}/entity-resolution/data/fetchData.sh"
+   sed -i "s/entity-resolution-\(\w\+\).zip/${ER_DATA_FILE}/" "${PSL_EXAMPLES_DIR}/entity-resolution/data/fetchData.sh"
 }
 
 # Common to all examples.
@@ -67,7 +67,7 @@ function standard_fixes() {
             cp "${baseName}.psl" "${baseName}-learned.psl"
 
             # Disable weight learning.
-            sed -i 's/^\(\s\+\)runWeightLearning/\1# runWeightLearning/' run.sh
+            sed -i 's/^\(\s\+\)run_weight_learning/\1# run_weight_learning/' run.sh
 
             # Disable evaluation, we are only looking for objective values.
             sed -i "s/^readonly ADDITIONAL_EVAL_OPTIONS='.*'$/readonly ADDITIONAL_EVAL_OPTIONS='--infer'/" run.sh
@@ -76,14 +76,21 @@ function standard_fixes() {
     done
 }
 
+function fetch_data() {
+    for fetchScript in `find ${PSL_EXAMPLES_DIR} -type f -name 'fetchData.sh'`; do
+        "${fetchScript}"
+    done
+}
+
 function main() {
-   trap exit SIGINT
+    trap exit SIGINT
 
-   fetch_psl_examples
-   special_fixes
-   standard_fixes
+    fetch_psl_examples
+    special_fixes
+    standard_fixes
+    fetch_data
 
-   exit 0
+    exit 0
 }
 
 [[ "${BASH_SOURCE[0]}" == "${0}" ]] && main "$@"
