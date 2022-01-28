@@ -9,9 +9,113 @@ The input to this script should be the output from parse-results.py, ex:
 ```
 '''
 
+import math
 import os
-import statistics
+import sqlite3
 import sys
+
+# Get the "baseline" (non-collective) rows.
+BASELINE_QUERY = '''
+    SELECT *
+    FROM Stats
+    WHERE collective = FALSE
+'''
+
+# Compare runs against their relevant baseline (non-collective) run.
+PROPORTIONAL_QUERY = '''
+    SELECT
+        S.example,
+        S.iteration,
+        S.split,
+        S.collective,
+        S.candidate_count,
+        S.search_budget,
+        S.search_type,
+        S.runtime,
+        S.runtime / CAST(B.runtime AS FLOAT) AS runtime_proportional,
+        S.memory,
+        S.memory / CAST(B.memory AS FLOAT) AS memory_proportional
+    FROM
+        Stats S
+        JOIN (
+            ''' + BASELINE_QUERY + '''
+        ) B ON
+            S.example = B.example
+            AND S.iteration = B.iteration
+            AND S.split = B.split
+    ORDER BY
+        S.example,
+        S.iteration,
+        S.split,
+        S.collective,
+        S.candidate_count,
+        S.search_budget,
+        S.search_type
+'''
+
+# Aggregate over splits and iterations.
+AGGREGATE_QUERY = '''
+    SELECT
+        S.example,
+        S.collective,
+        S.candidate_count,
+        S.search_budget,
+        S.search_type,
+        COUNT(*) AS aggregate_count,
+        AVG(S.runtime) AS runtime_mean,
+        STDEV(S.runtime) AS runtime_std,
+        AVG(S.runtime_proportional) AS runtime_proportional_mean,
+        STDEV(S.runtime_proportional) AS runtime_proportional_std,
+        AVG(S.memory) AS memory_mean,
+        STDEV(S.memory) AS memory_std,
+        AVG(S.memory_proportional) AS memory_proportional_mean,
+        STDEV(S.memory_proportional) AS memory_proportional_std
+    FROM
+        (
+            ''' + PROPORTIONAL_QUERY + '''
+        ) S
+    GROUP BY
+        S.example,
+        S.collective,
+        S.candidate_count,
+        S.search_budget,
+        S.search_type
+    ORDER BY
+        S.example,
+        S.collective,
+        S.candidate_count,
+        S.search_budget,
+        S.search_type
+'''
+
+# Like the previous query, but also aggregate over examples.
+# Only report proportional numbers (since flat ones don't make sense across examples).
+EXAMPLE_AGGREGATE_QUERY = '''
+    SELECT
+        S.collective,
+        S.candidate_count,
+        S.search_budget,
+        S.search_type,
+        COUNT(*) AS aggregate_count,
+        AVG(S.runtime_proportional) AS runtime_proportional_mean,
+        STDEV(S.runtime_proportional) AS runtime_proportional_std,
+        AVG(S.memory_proportional) AS memory_proportional_mean,
+        STDEV(S.memory_proportional) AS memory_proportional_std
+    FROM
+        (
+            ''' + PROPORTIONAL_QUERY + '''
+        ) S
+    GROUP BY
+        S.collective,
+        S.candidate_count,
+        S.search_budget,
+        S.search_type
+    ORDER BY
+        S.collective,
+        S.candidate_count,
+        S.search_budget,
+        S.search_type
+'''
 
 BOOL_COLUMNS = {
     'collective',
@@ -24,40 +128,20 @@ INT_COLUMNS = {
     'memory',
 }
 
-# Rows that match these columns are baselines.
-BASELINE_STATIC_COLUMNS = {
-    'collective': False,
-    'candidate_count': None,
-    'search_budget': None,
-    'search_type': None,
-}
-
-RESULT_COLUMNS = {
-    'runtime',
-    'memory',
-}
-
-AGGREGATE_COLUMNS = {
-    'iteration',
-    'split',
-}
-
-COUNT_COLUMN = 'count'
-PROPORTIONAL_SUFFIX = '_proportional'
-MEAN_SUFFIX = '_mean'
-STD_SUFFIX = '_std'
-
 RUN_MODE_PROPORTIONAL = 'PROPORTIONAL'
 RUN_MODE_AGGREGATE = 'AGGREGATE'
+RUN_MODE_EXAMPLE_AGGREGATE = 'EXAMPLE_AGGREGATE'
 
 RUN_MODES = [
     RUN_MODE_PROPORTIONAL,
     RUN_MODE_AGGREGATE,
+    RUN_MODE_EXAMPLE_AGGREGATE,
 ]
 
 RUN_MODE_DESCRIPTIONS = [
     'Just add proportional columns to the results.',
-    'Aggregate over [%s].' % (', '.join(list(sorted(AGGREGATE_COLUMNS)))),
+    'Aggregate over iteration and split.',
+    'Aggregate over iteration, split, and example.',
 ]
 
 # ([header, ...], [[value, ...], ...])
@@ -92,134 +176,66 @@ def fetchResults(path):
 
     return header, rows
 
-# Note that the keys are value for columns that are not results or baseline columns.
-# So, for a row to find it's baseline, it just needs to match on these columns.
-# Return: ([match column, ...], {(match value, ...): index, ...}
-def getBaselineIndexes(header, rows, resultColumns):
-    baselineColumns = list(sorted(BASELINE_STATIC_COLUMNS.keys()))
-    matchColumns = list(sorted(set(header) - set(baselineColumns) - set(resultColumns)))
+# Standard deviation UDF for sqlite3.
+# Taken from: https://www.alexforencich.com/wiki/en/scripts/python/stdev
+class StdevFunc:
+    def __init__(self):
+        self.M = 0.0
+        self.S = 0.0
+        self.k = 1
+ 
+    def step(self, value):
+        if value is None:
+            return
+        tM = self.M
+        self.M += (value - tM) / self.k
+        self.S += (value - tM) * (value - self.M)
+        self.k += 1
+ 
+    def finalize(self):
+        if self.k < 3:
+            return None
+        return math.sqrt(self.S / (self.k-2))
 
-    baselines = {}
+def main(mode, resultsPath):
+    columns, data = fetchResults(resultsPath)
+    if (len(data) == 0):
+        return
 
-    for i in range(len(rows)):
-        baselineMatch = True
-        for baselineColumn in baselineColumns:
-            if (rows[i][header.index(baselineColumn)] != BASELINE_STATIC_COLUMNS[baselineColumn]):
-                baselineMatch = False
-                break
+    columnDefs = []
+    for column in columns:
+        if (column in BOOL_COLUMNS):
+            columnDefs.append("%s INTEGER" % (column))
+        elif (column in INT_COLUMNS):
+            columnDefs.append("%s INTEGER" % (column))
+        else:
+            columnDefs.append("%s TEXT" % (column))
 
-        if (not baselineMatch):
-            continue
 
-        matchValues = []
-        for matchColumn in matchColumns:
-            matchValues.append(rows[i][header.index(matchColumn)])
+    connection = sqlite3.connect(":memory:")
+    connection.create_aggregate("STDEV", 1, StdevFunc)
 
-        baselines[tuple(matchValues)] = i
+    connection.execute("CREATE TABLE Stats(%s)" % (', '.join(columnDefs)))
 
-    return matchColumns, baselines
+    connection.executemany("INSERT INTO Stats(%s) VALUES (%s)" % (', '.join(columns), ', '.join(['?'] * len(columns))), data)
 
-# Compute the proportional results columns and insert them into |header| and |rows|.
-def createProportionalResults(header, rows, resultColumns):
-    matchColumns, baselines = getBaselineIndexes(header, rows, resultColumns)
+    query = None
+    if (mode == RUN_MODE_PROPORTIONAL):
+        query = PROPORTIONAL_QUERY
+    elif (mode == RUN_MODE_AGGREGATE):
+        query = AGGREGATE_QUERY
+    elif (mode == RUN_MODE_EXAMPLE_AGGREGATE):
+        query = EXAMPLE_AGGREGATE_QUERY
+    else:
+        raise ValueError("Unknown mode: '%s'." % (mode))
 
-    newColumns = [header + PROPORTIONAL_SUFFIX for header in resultColumns]
+    rows = connection.execute(query)
 
-    for i in range(len(rows)):
-        matchValues = tuple([rows[i][header.index(matchColumn)] for matchColumn in matchColumns])
-        baselineIndex = baselines[matchValues]
-        assert(baselineIndex is not None)
-
-        for resultColumn in resultColumns:
-            value = rows[i][header.index(resultColumn)]
-            baselineValue = rows[baselineIndex][header.index(resultColumn)]
-
-            if (baselineValue == 0):
-                rows[i].append(None)
-            else:
-                rows[i].append(value / baselineValue)
-
-    resultColumns.extend(newColumns)
-    header.extend(newColumns)
-
-    return resultColumns + newColumns
-
-# Aggregate rows.
-# Will not modify the passed-in structures, and instead pass out new versions.
-def aggregate(header, rows, resultColumns, aggregateColumns = AGGREGATE_COLUMNS):
-    assert(COUNT_COLUMN not in header)
-
-    newResultColumns = [COUNT_COLUMN]
-    newResultColumns += [resultColumn + MEAN_SUFFIX for resultColumn in resultColumns]
-    newResultColumns += [resultColumn + STD_SUFFIX for resultColumn in resultColumns]
-    newResultColumns = list(sorted(newResultColumns))
-
-    newColumns = list(header)
-    for resultColumn in (list(resultColumns) + list(aggregateColumns)):
-        newColumns.remove(resultColumn)
-    newColumns += newResultColumns
-
-    matchColumns = list(sorted(set(header) - set(resultColumns) - set(aggregateColumns)))
-
-    # {(match value, ...): {column: value, ...}, ...}
-    # The old result columns will be used to hold all values, e.g., `{runtime: [value, ...], ...}`.
-    aggregateData = {}
-
-    for row in rows:
-        matchValues = tuple([row[header.index(matchColumn)] for matchColumn in matchColumns])
-        if (matchValues not in aggregateData):
-            newEntry = {column: row[header.index(column)] for column in matchColumns}
-            newEntry.update({column: 0 for column in newResultColumns})
-            newEntry.update({column: [] for column in resultColumns})
-            aggregateData[matchValues] = newEntry
-
-        aggregateData[matchValues][COUNT_COLUMN] += 1
-
-        for resultColumn in resultColumns:
-            aggregateData[matchValues][resultColumn].append(row[header.index(resultColumn)])
-
-    newRows = []
-    for aggregateRow in aggregateData.values():
-        newRow = [aggregateRow[column] for column in newColumns]
-
-        for resultColumn in resultColumns:
-            meanColumn = resultColumn + MEAN_SUFFIX
-            stdColumn = resultColumn + STD_SUFFIX
-
-            newRow[newColumns.index(meanColumn)] = statistics.mean(aggregateRow[resultColumn])
-            newRow[newColumns.index(stdColumn)] = statistics.stdev(aggregateRow[resultColumn])
-
-        newRows.append(newRow)
-
-    return newColumns, newRows, newResultColumns
-
-def output(header, rows):
-    print("\t".join(header))
+    print("\t".join([column[0] for column in rows.description]))
     for row in rows:
         print("\t".join(map(str, row)))
 
-def mainProportional(resultColumns, header, rows):
-    createProportionalResults(header, rows, resultColumns)
-    output(header, rows)
-
-def mainAggregate(resultColumns, header, rows):
-    createProportionalResults(header, rows, resultColumns)
-    aggregateHeader, aggregateRows, aggregateResultColumns = aggregate(header, rows, resultColumns)
-    output(aggregateHeader, aggregateRows)
-
-def main(mode, resultsPath):
-    resultColumns = list(sorted(RESULT_COLUMNS))
-
-    header, rows = fetchResults(resultsPath)
-    if (len(rows) == 0):
-        return
-
-    if (mode == RUN_MODE_PROPORTIONAL):
-        mainProportional(resultColumns, header, rows)
-    elif (mode == RUN_MODE_AGGREGATE):
-        mainAggregate(resultColumns, header, rows)
-    else:
-        raise ValueError("Unknown mode: '%s'." % (mode))
+    connection.close()
 
 def _load_args(args):
     executable = args.pop(0)
