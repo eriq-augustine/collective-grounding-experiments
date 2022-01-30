@@ -88,6 +88,35 @@ AGGREGATE_QUERY = '''
         S.search_type
 '''
 
+# Aggregate over iterations/splits, and pull out the best hyperparam collection per example.
+AGGREGATE_BEST_PER_EXAMPLE_QUERY = '''
+    SELECT
+        A.example,
+        ROW_NUMBER() OVER ExampleWindow AS example_rank,
+        A.collective,
+        A.candidate_count,
+        A.search_budget,
+        A.search_type,
+        A.aggregate_count,
+        A.runtime_mean,
+        A.runtime_std,
+        A.runtime_proportional_mean,
+        A.runtime_proportional_std,
+        A.memory_mean,
+        A.memory_std,
+        A.memory_proportional_mean,
+        A.memory_proportional_std
+    FROM
+        (
+            ''' + AGGREGATE_QUERY + '''
+        ) A
+    WHERE A.collective = TRUE
+    WINDOW ExampleWindow AS (
+        PARTITION BY A.example
+        ORDER BY A.runtime_proportional_mean ASC
+    )
+'''
+
 # Like the previous query, but also aggregate over examples.
 # Only report proportional numbers (since flat ones don't make sense across examples).
 EXAMPLE_AGGREGATE_QUERY = '''
@@ -128,21 +157,29 @@ INT_COLUMNS = {
     'memory',
 }
 
-RUN_MODE_PROPORTIONAL = 'PROPORTIONAL'
-RUN_MODE_AGGREGATE = 'AGGREGATE'
-RUN_MODE_EXAMPLE_AGGREGATE = 'EXAMPLE_AGGREGATE'
-
-RUN_MODES = [
-    RUN_MODE_PROPORTIONAL,
-    RUN_MODE_AGGREGATE,
-    RUN_MODE_EXAMPLE_AGGREGATE,
-]
-
-RUN_MODE_DESCRIPTIONS = [
-    'Just add proportional columns to the results.',
-    'Aggregate over iteration and split.',
-    'Aggregate over iteration, split, and example.',
-]
+# {key: (query, description), ...}
+RUN_MODES = {
+    'PROPORTIONAL': (
+        PROPORTIONAL_QUERY,
+        'Just add proportional columns to the results.',
+    ),
+    'AGGREGATE': (
+        AGGREGATE_QUERY,
+        'Aggregate over iteration and split.',
+    ),
+    'AGGREGATE_BEST_PER_EXAMPLE': (
+        AGGREGATE_BEST_PER_EXAMPLE_QUERY,
+        'Aggregate over iteration and split, and show the best hyperparams for each example.',
+    ),
+    'EXAMPLE_AGGREGATE': (
+        EXAMPLE_AGGREGATE_QUERY,
+        'Aggregate over iteration, split, and example.',
+    ),
+    'AGGREGATE_BEST_PER_EXAMPLE': (
+        AGGREGATE_BEST_PER_EXAMPLE_QUERY,
+        'Aggregate over iteration and split, and show the best hyperparams for each example.',
+    ),
+}
 
 # ([header, ...], [[value, ...], ...])
 def fetchResults(path):
@@ -183,7 +220,7 @@ class StdevFunc:
         self.M = 0.0
         self.S = 0.0
         self.k = 1
- 
+
     def step(self, value):
         if value is None:
             return
@@ -191,7 +228,7 @@ class StdevFunc:
         self.M += (value - tM) / self.k
         self.S += (value - tM) * (value - self.M)
         self.k += 1
- 
+
     def finalize(self):
         if self.k < 3:
             return None
@@ -219,16 +256,7 @@ def main(mode, resultsPath):
 
     connection.executemany("INSERT INTO Stats(%s) VALUES (%s)" % (', '.join(columns), ', '.join(['?'] * len(columns))), data)
 
-    query = None
-    if (mode == RUN_MODE_PROPORTIONAL):
-        query = PROPORTIONAL_QUERY
-    elif (mode == RUN_MODE_AGGREGATE):
-        query = AGGREGATE_QUERY
-    elif (mode == RUN_MODE_EXAMPLE_AGGREGATE):
-        query = EXAMPLE_AGGREGATE_QUERY
-    else:
-        raise ValueError("Unknown mode: '%s'." % (mode))
-
+    query = RUN_MODES[mode][0]
     rows = connection.execute(query)
 
     print("\t".join([column[0] for column in rows.description]))
@@ -242,8 +270,8 @@ def _load_args(args):
     if (len(args) != 2 or ({'h', 'help'} & {arg.lower().strip().replace('-', '') for arg in args})):
         print("USAGE: python3 %s <mode> <results path>" % (executable), file = sys.stderr)
         print("modes:", file = sys.stderr)
-        for i in range(len(RUN_MODES)):
-            print("    %s - %s" % (RUN_MODES[i], RUN_MODE_DESCRIPTIONS[i]), file = sys.stderr)
+        for (key, (query, description)) in RUN_MODES.items():
+            print("    %s - %s" % (key, description), file = sys.stderr)
         sys.exit(1)
 
     mode = args.pop(0).upper()
