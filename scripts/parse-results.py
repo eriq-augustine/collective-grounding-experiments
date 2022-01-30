@@ -30,7 +30,7 @@ def parseLog(logPath):
     results = {}
 
     # Fetch the run identifiers off of the path.
-    for (key, value) in re.findall(r'(\w+)::(\w+)', logPath):
+    for (key, value) in re.findall(r'([\w\-]+)::([\w\-]+)', logPath):
         results[key] = value
 
     with open(logPath, 'r') as file:
