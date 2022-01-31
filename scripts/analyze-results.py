@@ -378,6 +378,51 @@ BEST_RUNS_QUERY = '''
         H.param_type
 '''
 
+BEST_SUMMARY_QUERY = '''
+    SELECT
+        B.example AS 'Dataset',
+
+        CAST(CAST(B.runtime_mean AS INT) AS TEXT)
+            || ' ± '
+            || CAST(CAST(B.runtime_std AS INT) AS TEXT)
+            AS 'Absolute Standard Grounding',
+        CAST(CAST(E.runtime_mean AS INT) AS TEXT)
+            || ' ± '
+            || CAST(CAST(E.runtime_std AS INT) AS TEXT)
+            AS 'Absolute Collective Grounding (Per-Dataset Hyperparameters)',
+        CAST(CAST(O.runtime_mean AS INT) AS TEXT)
+            || ' ± '
+            || CAST(CAST(O.runtime_std AS INT) AS TEXT)
+            AS 'Absolute Collective Grounding (Overall Hyperparameters)',
+
+        CAST(ROUND(B.runtime_proportional_mean, 2) AS TEXT)
+            || ' ± '
+            || CAST(ROUND(B.runtime_proportional_std, 2) AS TEXT)
+            AS 'Percentage Standard Grounding',
+        CAST(ROUND(E.runtime_proportional_mean, 2) AS TEXT)
+            || ' ± '
+            || CAST(ROUND(E.runtime_proportional_std, 2) AS TEXT)
+            AS 'Percentage Collective Grounding (Per-Dataset Hyperparameters)',
+        CAST(ROUND(O.runtime_proportional_mean, 2) AS TEXT)
+            || ' ± '
+            || CAST(ROUND(O.runtime_proportional_std, 2) AS TEXT)
+            AS 'Percentage Collective Grounding (Overall Hyperparameters)'
+    FROM
+        (
+            ''' + BEST_RUNS_QUERY + '''
+        ) B
+        JOIN (
+            ''' + BEST_RUNS_QUERY + ''')
+        E ON E.example = B.example
+        JOIN (
+            ''' + BEST_RUNS_QUERY + ''')
+        O ON O.example = B.example
+    WHERE
+        B.param_type = 'baseline'
+        AND E.param_type = 'example'
+        AND O.param_type = 'overall'
+'''
+
 BOOL_COLUMNS = {
     'collective',
 }
@@ -423,6 +468,10 @@ RUN_MODES = {
     'BEST_RUNS': (
         BEST_RUNS_QUERY,
         'Use the results from NO_VALIDATION_AGGREGATE, and choose the rows using the best hyperparams overall (decided by EXAMPLE_AGGREGATE) and per-example (decided by VALIDATION_AGGREGATE_RANK).',
+    ),
+    'BEST_RUNS_SUMMARY': (
+        BEST_SUMMARY_QUERY,
+        'Provide a small summary table of BEST_RUNS.',
     ),
 }
 
