@@ -220,6 +220,164 @@ VALIDATION_AGGREGATEION_RANK_QUERY = '''
         S.search_type
 '''
 
+# For the validation split (first split in each example), aggregate over iterations / example, and rank the hyperparams.
+VALIDATION_AGGREGATEION_EXAMPLE_RANK_QUERY = '''
+    SELECT
+        ROW_NUMBER() OVER ParamWindow AS rank,
+        S.collective,
+        S.candidate_count,
+        S.search_budget,
+        S.search_type,
+        COUNT(*) AS aggregate_count,
+        AVG(S.runtime) AS runtime_mean,
+        STDEV(S.runtime) AS runtime_std,
+        AVG(S.runtime_proportional) AS runtime_proportional_mean,
+        STDEV(S.runtime_proportional) AS runtime_proportional_std,
+        AVG(S.memory) AS memory_mean,
+        STDEV(S.memory) AS memory_std,
+        AVG(S.memory_proportional) AS memory_proportional_mean,
+        STDEV(S.memory_proportional) AS memory_proportional_std
+    FROM
+        (
+            ''' + PROPORTIONAL_QUERY + '''
+        ) S
+        JOIN (
+            ''' + VALIDATION_SPLITS_QUERY + '''
+        ) V ON
+            V.example = S.example
+            AND V.split = S.split
+    WHERE S.collective = TRUE
+    GROUP BY
+        S.collective,
+        S.candidate_count,
+        S.search_budget,
+        S.search_type
+    WINDOW ParamWindow AS (
+        ORDER BY AVG(S.runtime_proportional) ASC
+    )
+    ORDER BY
+        ROW_NUMBER() OVER ParamWindow,
+        S.collective,
+        S.candidate_count,
+        S.search_budget,
+        S.search_type
+'''
+
+# Aggregate over iterations / splits, but ignore the validation split.
+NO_VALIDATION_AGGREGATEION_QUERY = '''
+    SELECT
+        S.example,
+        S.collective,
+        S.candidate_count,
+        S.search_budget,
+        S.search_type,
+        COUNT(*) AS aggregate_count,
+        AVG(S.runtime) AS runtime_mean,
+        STDEV(S.runtime) AS runtime_std,
+        AVG(S.runtime_proportional) AS runtime_proportional_mean,
+        STDEV(S.runtime_proportional) AS runtime_proportional_std,
+        AVG(S.memory) AS memory_mean,
+        STDEV(S.memory) AS memory_std,
+        AVG(S.memory_proportional) AS memory_proportional_mean,
+        STDEV(S.memory_proportional) AS memory_proportional_std
+    FROM
+        (
+            ''' + PROPORTIONAL_QUERY + '''
+        ) S
+        JOIN (
+            ''' + VALIDATION_SPLITS_QUERY + '''
+        ) V ON
+            V.example = S.example
+            AND V.split != S.split
+    GROUP BY
+        S.example,
+        S.collective,
+        S.candidate_count,
+        S.search_budget,
+        S.search_type
+    ORDER BY
+        S.example,
+        S.collective,
+        S.candidate_count,
+        S.search_budget,
+        S.search_type
+'''
+
+# Get the best set of hyperparams (for collective runs).
+# "Best" is determined by best overall and best per-example (using the validation set).
+BEST_HYPERPARAMS = '''
+    SELECT
+        'example' as param_type,
+        R.example,
+        R.candidate_count,
+        R.search_budget,
+        R.search_type
+    FROM
+        (
+            ''' + VALIDATION_AGGREGATEION_RANK_QUERY + '''
+        ) R
+    WHERE
+        R.collective = TRUE
+        AND R.example_rank = 1
+
+    UNION ALL
+
+    SELECT
+        'overall' as param_type,
+        NULL AS example,
+        R.candidate_count,
+        R.search_budget,
+        R.search_type
+    FROM
+        (
+            ''' + VALIDATION_AGGREGATEION_EXAMPLE_RANK_QUERY + '''
+        ) R
+    WHERE
+        R.collective = TRUE
+        AND R.rank = 1
+'''
+
+# Use the results from NO_VALIDATION_AGGREGATEION_QUERY, and choose the rows using the best hyperparams (BEST_HYPERPARAMS).
+BEST_RUNS_QUERY = '''
+    SELECT
+        H.param_type,
+        A.*
+    FROM
+        (
+            ''' + NO_VALIDATION_AGGREGATEION_QUERY + '''
+        ) A
+        JOIN (
+            ''' + BEST_HYPERPARAMS + '''
+
+            UNION ALL
+
+            SELECT
+                'baseline' as param_type,
+                NULL AS example,
+                NULL AS candidate_count,
+                NULL AS search_budget,
+                NULL AS search_type
+        ) H ON
+            (
+                H.param_type = 'baseline'
+                AND A.collective = FALSE
+            ) OR (
+                H.param_type = 'example'
+                AND H.example = A.example
+                AND H.candidate_count = A.candidate_count
+                AND H.search_budget = A.search_budget
+                AND H.search_type = A.search_type
+            ) OR (
+                H.param_type = 'overall'
+                AND H.candidate_count = A.candidate_count
+                AND H.search_budget = A.search_budget
+                AND H.search_type = A.search_type
+            )
+    ORDER BY
+        A.example,
+        H.param_type
+'''
+
 BOOL_COLUMNS = {
     'collective',
 }
@@ -253,7 +411,19 @@ RUN_MODES = {
     'VALIDATION_AGGREGATE_RANK': (
         VALIDATION_AGGREGATEION_RANK_QUERY,
         'Use only the validation split for each example, aggregate over iteration, and rank hyperparams for each example.',
-    )
+    ),
+    'VALIDATION_AGGREGATE_EXAMPLE_RANK': (
+        VALIDATION_AGGREGATEION_EXAMPLE_RANK_QUERY,
+        'Use only the validation split for each example, aggregate over iteration / example, and rank hyperparams for each example.',
+    ),
+    'NO_VALIDATION_AGGREGATE': (
+        NO_VALIDATION_AGGREGATEION_QUERY,
+        'Aggregate over iterations / splits, but ignore the validation split.',
+    ),
+    'BEST_RUNS': (
+        BEST_RUNS_QUERY,
+        'Use the results from NO_VALIDATION_AGGREGATE, and choose the rows using the best hyperparams overall (decided by EXAMPLE_AGGREGATE) and per-example (decided by VALIDATION_AGGREGATE_RANK).',
+    ),
 }
 
 # ([header, ...], [[value, ...], ...])
