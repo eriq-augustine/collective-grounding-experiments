@@ -89,7 +89,7 @@ AGGREGATE_QUERY = '''
 '''
 
 # Aggregate over iterations/splits, and pull out the best hyperparam collection per example.
-AGGREGATE_BEST_PER_EXAMPLE_QUERY = '''
+AGGREGATE_RANK_QUERY = '''
     SELECT
         A.example,
         ROW_NUMBER() OVER ExampleWindow AS example_rank,
@@ -115,6 +115,13 @@ AGGREGATE_BEST_PER_EXAMPLE_QUERY = '''
         PARTITION BY A.example
         ORDER BY A.runtime_proportional_mean ASC
     )
+    ORDER BY
+        ROW_NUMBER() OVER ExampleWindow,
+        A.example,
+        A.collective,
+        A.candidate_count,
+        A.search_budget,
+        A.search_type
 '''
 
 # Like the previous query, but also aggregate over examples.
@@ -146,11 +153,79 @@ EXAMPLE_AGGREGATE_QUERY = '''
         S.search_type
 '''
 
+# Find the validation splits for each example.
+VALIDATION_SPLITS_QUERY = '''
+    SELECT DISTINCT
+        example,
+        split
+    FROM
+        (
+            SELECT
+                S.example,
+                S.split,
+                ROW_NUMBER() OVER SplitWindow AS rank
+            FROM Stats S
+            WINDOW SplitWindow AS (
+                PARTITION BY S.example
+                ORDER BY S.split ASC
+            )
+        ) S
+    WHERE S.rank = 1
+'''
+
+# For the validation split (first split in each example), aggregate over iterations, and rank the hyperparams.
+VALIDATION_AGGREGATEION_RANK_QUERY = '''
+    SELECT
+        S.example,
+        ROW_NUMBER() OVER ExampleWindow AS example_rank,
+        S.collective,
+        S.candidate_count,
+        S.search_budget,
+        S.search_type,
+        COUNT(*) AS aggregate_count,
+        AVG(S.runtime) AS runtime_mean,
+        STDEV(S.runtime) AS runtime_std,
+        AVG(S.runtime_proportional) AS runtime_proportional_mean,
+        STDEV(S.runtime_proportional) AS runtime_proportional_std,
+        AVG(S.memory) AS memory_mean,
+        STDEV(S.memory) AS memory_std,
+        AVG(S.memory_proportional) AS memory_proportional_mean,
+        STDEV(S.memory_proportional) AS memory_proportional_std
+    FROM
+        (
+            ''' + PROPORTIONAL_QUERY + '''
+        ) S
+        JOIN (
+            ''' + VALIDATION_SPLITS_QUERY + '''
+        ) V ON
+            V.example = S.example
+            AND V.split = S.split
+    WHERE S.collective = TRUE
+    GROUP BY
+        S.example,
+        S.collective,
+        S.candidate_count,
+        S.search_budget,
+        S.search_type
+    WINDOW ExampleWindow AS (
+        PARTITION BY S.example
+        ORDER BY AVG(S.runtime_proportional) ASC
+    )
+    ORDER BY
+        ROW_NUMBER() OVER ExampleWindow,
+        S.example,
+        S.collective,
+        S.candidate_count,
+        S.search_budget,
+        S.search_type
+'''
+
 BOOL_COLUMNS = {
     'collective',
 }
 
 INT_COLUMNS = {
+    'iteration',
     'candidate_count',
     'search_budget',
     'runtime',
@@ -167,18 +242,18 @@ RUN_MODES = {
         AGGREGATE_QUERY,
         'Aggregate over iteration and split.',
     ),
-    'AGGREGATE_BEST_PER_EXAMPLE': (
-        AGGREGATE_BEST_PER_EXAMPLE_QUERY,
-        'Aggregate over iteration and split, and show the best hyperparams for each example.',
+    'AGGREGATE_RANK': (
+        AGGREGATE_RANK_QUERY,
+        'Aggregate over iteration and split, and show the rank of hyperparams for each example.',
     ),
     'EXAMPLE_AGGREGATE': (
         EXAMPLE_AGGREGATE_QUERY,
         'Aggregate over iteration, split, and example.',
     ),
-    'AGGREGATE_BEST_PER_EXAMPLE': (
-        AGGREGATE_BEST_PER_EXAMPLE_QUERY,
-        'Aggregate over iteration and split, and show the best hyperparams for each example.',
-    ),
+    'VALIDATION_AGGREGATE_RANK': (
+        VALIDATION_AGGREGATEION_RANK_QUERY,
+        'Use only the validation split for each example, aggregate over iteration, and rank hyperparams for each example.',
+    )
 }
 
 # ([header, ...], [[value, ...], ...])
