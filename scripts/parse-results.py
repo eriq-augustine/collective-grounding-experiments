@@ -7,8 +7,8 @@ import os
 import re
 import sys
 
-THIS_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)))
-RESULTS_DIR = os.path.abspath(os.path.join(THIS_DIR, '..', 'results'))
+THIS_DIR = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
+RESULTS_DIR = os.path.join(THIS_DIR, '..', 'results')
 
 LOG_FILENAME = 'out.txt'
 
