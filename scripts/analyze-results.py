@@ -435,6 +435,9 @@ INT_COLUMNS = {
     'memory',
 }
 
+FLOAT_COLUMNS = {
+}
+
 # {key: (query, description), ...}
 RUN_MODES = {
     'PROPORTIONAL': (
@@ -502,6 +505,8 @@ def fetchResults(path):
                     row[i] = (row[i].upper() == 'TRUE')
                 elif (header[i] in INT_COLUMNS):
                     row[i] = int(row[i])
+                elif (header[i] in FLOAT_COLUMNS):
+                    row[i] = float(row[i])
 
             rows.append(row)
 
@@ -533,15 +538,21 @@ def main(mode, resultsPath):
     if (len(data) == 0):
         return
 
-    columnDefs = []
-    for column in columns:
-        if (column in BOOL_COLUMNS):
-            columnDefs.append("%s INTEGER" % (column))
-        elif (column in INT_COLUMNS):
-            columnDefs.append("%s INTEGER" % (column))
-        else:
-            columnDefs.append("%s TEXT" % (column))
+    quotedColumns = ["'%s'" % column for column in columns]
 
+    columnDefs = []
+    for i in range(len(columns)):
+        column = columns[i]
+        quotedColumn = quotedColumns[i]
+
+        if (column in BOOL_COLUMNS):
+            columnDefs.append("%s INTEGER" % (quotedColumn))
+        elif (column in INT_COLUMNS):
+            columnDefs.append("%s INTEGER" % (quotedColumn))
+        elif (column in FLOAT_COLUMNS):
+            columnDefs.append("%s FLOAT" % (quotedColumn))
+        else:
+            columnDefs.append("%s TEXT" % (quotedColumn))
 
     connection = sqlite3.connect(":memory:")
     connection.create_aggregate("STDEV", 1, StdevFunc)
