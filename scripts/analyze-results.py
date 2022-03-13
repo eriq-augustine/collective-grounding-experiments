@@ -423,6 +423,82 @@ BEST_SUMMARY_QUERY = '''
         AND O.param_type = 'overall'
 '''
 
+# Get all the unaggregated data for the best runs (so it can be taken elsewhere for significance testing).
+BEST_RUNS_RECORDS_QUERY_BASE = '''
+    SELECT
+        B.param_type,
+        S.example,
+        S.iteration,
+        S.split,
+        S.collective,
+        S.candidate_count,
+        S.search_budget,
+        S.search_type,
+        S.runtime
+    FROM
+        Stats S
+        JOIN (
+            ''' + VALIDATION_SPLITS_QUERY + '''
+        ) V ON
+            V.example = S.example
+            AND V.split != S.split
+        JOIN (
+            ''' + BEST_RUNS_QUERY + '''
+        ) B ON
+            S.example = B.example
+            AND (
+                (
+                    S.collective = FALSE
+                    AND B.param_type = 'baseline'
+                ) OR (
+                    S.collective = TRUE
+                    AND S.candidate_count = B.candidate_count
+                    AND S.search_budget = B.search_budget
+                    AND S.search_type = B.search_type
+                )
+            )
+    ORDER BY
+        B.param_type,
+        S.example,
+        S.iteration,
+        S.split,
+        S.collective,
+        S.candidate_count,
+        S.search_budget,
+        S.search_type
+'''
+
+# Reformat BEST_RUNS_RECORDS_QUERY_BASE to use three parallel columns.
+BEST_RUNS_RECORDS_QUERY = '''
+    SELECT
+        Baseline.example,
+        Baseline.iteration,
+        Baseline.split,
+        Baseline.runtime AS 'IG',
+        CGDataset.runtime AS 'CG (dataset)',
+        CGOverall.runtime AS 'CG (overall)'
+    FROM
+        (
+            ''' + BEST_RUNS_RECORDS_QUERY_BASE + '''
+        ) Baseline
+        JOIN (
+            ''' + BEST_RUNS_RECORDS_QUERY_BASE + '''
+        ) CGDataset ON
+            Baseline.example = CGDataset.example
+            AND Baseline.iteration = CGDataset.iteration
+            AND Baseline.split = CGDataset.split
+        JOIN (
+            ''' + BEST_RUNS_RECORDS_QUERY_BASE + '''
+        ) CGOverall ON
+            Baseline.example = CGOverall.example
+            AND Baseline.iteration = CGOverall.iteration
+            AND Baseline.split = CGOverall.split
+    WHERE
+        Baseline.param_type = 'baseline'
+        AND CGDataset.param_type = 'example'
+        AND CGOverall.param_type = 'overall'
+'''
+
 BOOL_COLUMNS = {
     'collective',
 }
@@ -475,6 +551,10 @@ RUN_MODES = {
     'BEST_RUNS_SUMMARY': (
         BEST_SUMMARY_QUERY,
         'Provide a small summary table of BEST_RUNS.',
+    ),
+    'BEST_RUNS_RECORDS': (
+        BEST_RUNS_RECORDS_QUERY,
+        'Get the full (non-validation) records for all of BEST_RUNS. Useful for significance testing',
     ),
 }
 
