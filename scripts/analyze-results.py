@@ -34,7 +34,9 @@ PROPORTIONAL_QUERY = '''
         S.runtime,
         S.runtime / CAST(B.runtime AS FLOAT) AS runtime_proportional,
         S.memory,
-        S.memory / CAST(B.memory AS FLOAT) AS memory_proportional
+        S.memory / CAST(B.memory AS FLOAT) AS memory_proportional,
+        S.num_rules,
+        S.num_queries
     FROM
         Stats S
         JOIN (
@@ -279,7 +281,9 @@ NO_VALIDATION_AGGREGATEION_QUERY = '''
         AVG(S.memory) AS memory_mean,
         STDEV(S.memory) AS memory_std,
         AVG(S.memory_proportional) AS memory_proportional_mean,
-        STDEV(S.memory_proportional) AS memory_proportional_std
+        STDEV(S.memory_proportional) AS memory_proportional_std,
+        AVG(S.num_rules) AS num_rules,
+        AVG(S.num_queries) AS num_queries_mean
     FROM
         (
             ''' + PROPORTIONAL_QUERY + '''
@@ -509,6 +513,8 @@ INT_COLUMNS = {
     'search_budget',
     'runtime',
     'memory',
+    'num_rules',
+    'num_queries',
 }
 
 FLOAT_COLUMNS = {

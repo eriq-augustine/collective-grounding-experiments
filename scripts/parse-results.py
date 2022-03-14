@@ -24,6 +24,8 @@ HEADER = [
     # Results
     'runtime',
     'memory',
+    'num_rules',
+    'num_queries',
 ]
 
 def parseLog(logPath):
@@ -32,6 +34,9 @@ def parseLog(logPath):
     # Fetch the run identifiers off of the path.
     for (key, value) in re.findall(r'([\w\-]+)::([\w\-]+)', logPath):
         results[key] = value
+
+    rules = 0
+    queries = 0
 
     with open(logPath, 'r') as file:
         for line in file:
@@ -43,6 +48,11 @@ def parseLog(logPath):
             if (match is not None):
                 time = int(match.group(1))
 
+            match = re.search(r'DEBUG org.linqs.psl.grounding.Grounding  - Grounding (\d+) rule\(s\) with query:', line)
+            if (match is not None):
+                queries += 1
+                rules += int(match.group(1))
+
             match = re.search(r'INFO  org.linqs.psl.util.RuntimeStats  - Used Memory \(bytes\)  -- Min:\s*(\d+), Max:\s*(\d+), Mean:\s*(\d+), Count:\s*(\d+)$', line)
             if (match is not None):
                 results['runtime'] = time
@@ -51,6 +61,9 @@ def parseLog(logPath):
     # Check for an unfinished run.
     if ('runtime' not in results):
         return None
+
+    results['num_rules'] = rules
+    results['num_queries'] = queries
 
     return results
 
