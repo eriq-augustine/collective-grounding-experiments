@@ -1,0 +1,38 @@
+.page {
+    padding: 20px;
+    width: 100%;
+    height: 100%;
+}
+
+.button-area {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+}
+
+.button-area button,
+.input-area input {
+    padding: 10px;
+    margin: 10px;
+}
+
+.tree-area,
+.tree-area svg {
+}
+
+.node rect {
+    fill: #ffffff;
+    stroke: #cccccc;
+    stroke-width: 2px;
+}
+
+.node text {
+    font: 13px sans-serif;
+    font-weight: bold;
+}
+
+.link {
+    fill: none;
+    stroke: #cccccc;
+    stroke-width: 10px;
+}
