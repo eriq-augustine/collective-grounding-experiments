@@ -26,6 +26,8 @@ HEADER = [
     'memory',
     'num_rules',
     'num_queries',
+    'num_query_results',
+    'num_ground_rules',
 ]
 
 def parseLog(logPath):
@@ -37,6 +39,8 @@ def parseLog(logPath):
 
     rules = 0
     queries = 0
+    queryResults = 0
+    groundRules = 0
 
     with open(logPath, 'r') as file:
         for line in file:
@@ -53,6 +57,11 @@ def parseLog(logPath):
                 queries += 1
                 rules += int(match.group(1))
 
+            match = re.search(r'DEBUG org.linqs.psl.grounding.Grounding  - Generated (\d+) ground rules from (\d+) query results.', line)
+            if (match is not None):
+                groundRules += int(match.group(1))
+                queryResults += int(match.group(2))
+
             match = re.search(r'INFO  org.linqs.psl.util.RuntimeStats  - Used Memory \(bytes\)  -- Min:\s*(\d+), Max:\s*(\d+), Mean:\s*(\d+), Count:\s*(\d+)$', line)
             if (match is not None):
                 results['runtime'] = time
@@ -64,6 +73,8 @@ def parseLog(logPath):
 
     results['num_rules'] = rules
     results['num_queries'] = queries
+    results['num_query_results'] = queryResults
+    results['num_ground_rules'] = groundRules
 
     return results
 
