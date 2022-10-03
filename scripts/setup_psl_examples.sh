@@ -8,16 +8,16 @@
 # This script has been modified for these experiments from the base psl-examples script.
 
 readonly POSTGRES_DB='psl'
-readonly BASE_PSL_OPTION="--postgres ${POSTGRES_DB} -D runtimestats.collect=true -D log4j.threshold=TRACE"
+readonly BASE_PSL_OPTION="--postgres ${POSTGRES_DB} -D runtimestats.collect=true -D runtime.log.level=TRACE -D inference.skip=true"
 
 # Basic configuration options.
-readonly PSL_VERSION='2.3.0-SNAPSHOT'
+readonly PSL_VERSION='3.0.0-SNAPSHOT'
 
 readonly BASE_DIR=$(realpath "$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"/..)
 
 readonly PSL_EXAMPLES_DIR="${BASE_DIR}/psl-examples"
 readonly PSL_EXAMPLES_REPO='https://github.com/linqs/psl-examples.git'
-readonly PSL_EXAMPLES_BRANCH='develop'
+readonly PSL_EXAMPLES_BRANCH='main'
 
 readonly AVAILABLE_MEM_KB=$(cat /proc/meminfo | grep 'MemTotal' | sed 's/^[^0-9]\+\([0-9]\+\)[^0-9]\+$/\1/')
 # Floor by multiples of 5 and then reserve an additional 5 GB.

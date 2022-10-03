@@ -9,6 +9,6 @@ out*.err
 inferred-predicates/
 
 /psl-examples/
-/results/
+/results*
 /old/
 /back/
