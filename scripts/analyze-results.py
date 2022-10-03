@@ -36,7 +36,9 @@ PROPORTIONAL_QUERY = '''
         S.memory,
         S.memory / CAST(B.memory AS FLOAT) AS memory_proportional,
         S.num_rules,
-        S.num_queries
+        S.num_queries,
+        S.num_query_results,
+        S.num_ground_rules
     FROM
         Stats S
         JOIN (
@@ -283,7 +285,9 @@ NO_VALIDATION_AGGREGATEION_QUERY = '''
         AVG(S.memory_proportional) AS memory_proportional_mean,
         STDEV(S.memory_proportional) AS memory_proportional_std,
         AVG(S.num_rules) AS num_rules,
-        AVG(S.num_queries) AS num_queries_mean
+        AVG(S.num_queries) AS num_queries_mean,
+        AVG(S.num_query_results) AS num_query_results_mean,
+        AVG(S.num_ground_rules) AS num_ground_rules_mean
     FROM
         (
             ''' + PROPORTIONAL_QUERY + '''
@@ -515,6 +519,8 @@ INT_COLUMNS = {
     'memory',
     'num_rules',
     'num_queries',
+    'num_query_results',
+    'num_ground_rules',
 }
 
 FLOAT_COLUMNS = {
