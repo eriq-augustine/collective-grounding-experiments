@@ -665,19 +665,19 @@ def main(mode, resultsPath):
 def _load_args(args):
     executable = args.pop(0)
     if (len(args) != 2 or ({'h', 'help'} & {arg.lower().strip().replace('-', '') for arg in args})):
-        print("USAGE: python3 %s <mode> <results path>" % (executable), file = sys.stderr)
+        print("USAGE: python3 %s <results path> <mode>" % (executable), file = sys.stderr)
         print("modes:", file = sys.stderr)
         for (key, (query, description)) in RUN_MODES.items():
             print("    %s - %s" % (key, description), file = sys.stderr)
         sys.exit(1)
 
-    mode = args.pop(0).upper()
-    if (mode not in RUN_MODES):
-        raise ValueError("Unknown mode: '%s'." % (mode))
-
     resultsPath = args.pop(0)
     if (not os.path.isfile(resultsPath)):
         raise ValueError("Can't find the specified results path: " + resultsPath)
+
+    mode = args.pop(0).upper()
+    if (mode not in RUN_MODES):
+        raise ValueError("Unknown mode: '%s'." % (mode))
 
     return mode, resultsPath
 

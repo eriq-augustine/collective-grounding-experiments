@@ -59,8 +59,11 @@ def parseLog(logPath):
 
             match = re.search(r'DEBUG org.linqs.psl.grounding.Grounding  - Generated (\d+) ground rules from (\d+) query results.', line)
             if (match is not None):
-                groundRules += int(match.group(1))
                 queryResults += int(match.group(2))
+
+            match = re.search(r'org.linqs.psl.application.inference.InferenceApplication  - Generated (\d+) ground rules.', line)
+            if (match is not None):
+                groundRules = int(match.group(1))
 
             match = re.search(r'INFO  org.linqs.psl.util.RuntimeStats  - Used Memory \(bytes\)  -- Min:\s*(\d+), Max:\s*(\d+), Mean:\s*(\d+), Count:\s*(\d+)$', line)
             if (match is not None):

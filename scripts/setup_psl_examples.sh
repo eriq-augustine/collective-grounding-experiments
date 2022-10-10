@@ -8,7 +8,7 @@
 # This script has been modified for these experiments from the base psl-examples script.
 
 readonly POSTGRES_DB='psl'
-readonly BASE_PSL_OPTION="--postgres ${POSTGRES_DB} -D runtimestats.collect=true -D runtime.log.level=TRACE -D inference.skip=true"
+readonly BASE_PSL_OPTIONS="--postgres ${POSTGRES_DB} -D runtimestats.collect=true -D runtime.log.level=TRACE -D inference.skip=true"
 
 # Basic configuration options.
 readonly PSL_VERSION='3.0.0-SNAPSHOT'
@@ -59,7 +59,7 @@ function standard_fixes() {
             sed -i "s/^readonly PSL_VERSION='.*'$/readonly PSL_VERSION='${PSL_VERSION}'/" run.sh
 
             # Add in the additional options.
-            sed -i "s/^readonly ADDITIONAL_PSL_OPTIONS='.*'$/readonly ADDITIONAL_PSL_OPTIONS='${BASE_PSL_OPTION}'/" run.sh
+            sed -i "s/^readonly ADDITIONAL_PSL_OPTIONS='\\(.*\\)'$/readonly ADDITIONAL_PSL_OPTIONS='\\1 ${BASE_PSL_OPTIONS}'/" run.sh
 
             # Experiment-specific modifications.
 
