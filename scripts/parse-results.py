@@ -23,6 +23,9 @@ HEADER = [
     'search_type',
     # Results
     'runtime',
+    'search_time',
+    'query_time',
+    'grounding_time',
     'memory',
     'num_rules',
     'num_queries',
@@ -36,6 +39,10 @@ def parseLog(logPath):
     # Fetch the run identifiers off of the path.
     for (key, value) in re.findall(r'([\w\-]+)::([\w\-]+)', logPath):
         results[key] = value
+
+    groundTimeStart = None
+    searchTimeStart = None
+    queryTimeStart = None
 
     rules = 0
     queries = 0
@@ -52,6 +59,19 @@ def parseLog(logPath):
             if (match is not None):
                 time = int(match.group(1))
 
+            match = re.search(r'INFO  org.linqs.psl.application.inference.InferenceApplication  - Grounding out model.', line)
+            if (match is not None):
+                groundTimeStart = time
+
+            match = re.search(r'DEBUG org.linqs.psl.grounding.Grounding  - Generating candidates.', line)
+            if (match is not None):
+                searchTimeStart = time
+
+            match = re.search(r'DEBUG org.linqs.psl.grounding.Grounding  - Generated (\d+) candidates', line)
+            if (match is not None and searchTimeStart is not None):
+                results['search_time'] = time - searchTimeStart
+                queryTimeStart = time
+
             match = re.search(r'DEBUG org.linqs.psl.grounding.Grounding  - Grounding (\d+) rule\(s\) with query:', line)
             if (match is not None):
                 queries += 1
@@ -64,6 +84,18 @@ def parseLog(logPath):
             match = re.search(r'org.linqs.psl.application.inference.InferenceApplication  - Generated (\d+) ground rules.', line)
             if (match is not None):
                 groundRules = int(match.group(1))
+
+            match = re.search(r'INFO  org.linqs.psl.application.inference.InferenceApplication  - Grounding complete.', line)
+            if (match is not None):
+                results['grounding_time'] = time - groundTimeStart
+
+                if (queryTimeStart is None):
+                    # IG
+                    results['search_time'] = 0
+                    results['query_time'] = time - groundTimeStart
+                else:
+                    # CG
+                    results['query_time'] = time - queryTimeStart
 
             match = re.search(r'INFO  org.linqs.psl.util.RuntimeStats  - Used Memory \(bytes\)  -- Min:\s*(\d+), Max:\s*(\d+), Mean:\s*(\d+), Count:\s*(\d+)$', line)
             if (match is not None):
