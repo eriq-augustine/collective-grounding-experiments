@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 # Parse out the results.
+# TODO(eriq): This does not properly parse number of query results for IG runs (but we only need that data in one place).
 
 import glob
 import os
