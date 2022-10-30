@@ -19,6 +19,10 @@ readonly PSL_EXAMPLES_DIR="${BASE_DIR}/psl-examples"
 readonly PSL_EXAMPLES_REPO='https://github.com/linqs/psl-examples.git'
 readonly PSL_EXAMPLES_BRANCH='main'
 
+readonly SKIP_EXAMPLES='friendship knowledge-graph-identification simple-acquaintances social-network-analysis stance-4forums trust-prediction user-modeling'
+# To avoid running the large IMDB example, use the following instead:
+# readonly SKIP_EXAMPLES='friendship knowledge-graph-identification simple-acquaintances social-network-analysis stance-4forums trust-prediction user-modeling imdb-er'
+
 readonly AVAILABLE_MEM_KB=$(cat /proc/meminfo | grep 'MemTotal' | sed 's/^[^0-9]\+\([0-9]\+\)[^0-9]\+$/\1/')
 # Floor by multiples of 5 and then reserve an additional 5 GB.
 readonly JAVA_MEM_GB=$((${AVAILABLE_MEM_KB} / 1024 / 1024 / 5 * 5 - 5))
@@ -34,7 +38,9 @@ function fetch_psl_examples() {
 
    pushd . > /dev/null
       cd "${PSL_EXAMPLES_DIR}"
+
       git checkout ${PSL_EXAMPLES_BRANCH}
+      rm -rf ${SKIP_EXAMPLES}
    popd > /dev/null
 }
 
