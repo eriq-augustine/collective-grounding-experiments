@@ -49,7 +49,7 @@ function main() {
         exit 1
     fi
 
-    if [[ -z "${DOCKER}" ]]; then
+    if [[ -f /.dockerenv ]]; then
         clear_cache_docker
     else
         clear_cache

@@ -38,7 +38,7 @@ function main() {
     local runScript="${SCRIPTS_DIR}/run-${experiment}.sh"
 
     echo "Running ${runScript}."
-    bash "${runScript}"
+    "${runScript}"
 }
 
 [[ "${BASH_SOURCE[0]}" == "${0}" ]] && main "$@"

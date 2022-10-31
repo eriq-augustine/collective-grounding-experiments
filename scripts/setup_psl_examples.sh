@@ -11,13 +11,13 @@ readonly POSTGRES_DB='psl'
 readonly BASE_PSL_OPTIONS="--postgres ${POSTGRES_DB} -D runtimestats.collect=true -D runtime.log.level=TRACE -D inference.skip=true"
 
 # Basic configuration options.
-readonly PSL_VERSION='3.0.0-SNAPSHOT'
+readonly PSL_VERSION='2.3.2'
 
 readonly BASE_DIR=$(realpath "$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"/..)
 
 readonly PSL_EXAMPLES_DIR="${BASE_DIR}/psl-examples"
 readonly PSL_EXAMPLES_REPO='https://github.com/linqs/psl-examples.git'
-readonly PSL_EXAMPLES_BRANCH='main'
+readonly PSL_EXAMPLES_BRANCH="${PSL_VERSION}"
 
 readonly SKIP_EXAMPLES='friendship knowledge-graph-identification simple-acquaintances social-network-analysis stance-4forums trust-prediction user-modeling'
 # To avoid running the large IMDB example, use the following instead:
